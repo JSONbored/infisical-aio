@@ -1,0 +1,12 @@
+#!/command/with-contenv bash
+set -euo pipefail
+
+ENV_FILE="/config/aio/generated.env"
+if [ -f "${ENV_FILE}" ]; then
+    set -a
+    . "${ENV_FILE}"
+    set +a
+fi
+
+echo "[aio-template] Replace this starter service with the real app start command."
+exec sleep infinity

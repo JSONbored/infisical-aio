@@ -1,0 +1,6 @@
+#!/command/with-contenv bash
+set -euo pipefail
+
+# Optional example service for repos that embed PostgreSQL.
+# Remove this service if the derived app does not use an internal database.
+exec sleep infinity
