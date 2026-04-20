@@ -20,4 +20,4 @@ if [ -z "${PG_BIN_DIR}" ]; then
     exit 1
 fi
 
-exec s6-setuidgid postgres "${PG_BIN_DIR}/postgres" -D /data/postgres -c listen_addresses=127.0.0.1
+exec /command/s6-setuidgid postgres "${PG_BIN_DIR}/postgres" -D /data/postgres -c listen_addresses=127.0.0.1

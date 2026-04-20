@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import html
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -205,8 +207,9 @@ def render_xml() -> str:
 - Infisical itself recommends external high-availability PostgreSQL and Redis for more serious production deployments.&#xD;
 - [code]SITE_URL[/code] matters. If you set it wrong, browser flows, links, email behavior, and some integrations will break in subtle ways.&#xD;
 - If you enable automatic bootstrap, you are creating a highly privileged instance-admin identity during first boot. Treat those credentials carefully.</Overview>
-  <Changes>[b]Latest release[/b]&#xD;
-- Initial Infisical AIO scaffold built from the current fleet template.&#xD;
+  <Changes>[b]Current source repo state[/b]&#xD;
+- Initial public release has not been cut yet.&#xD;
+- The source repo is validating the bundled PostgreSQL + Redis wrapper, first-run secret persistence, and the generated Infisical config surface.&#xD;
 &#xD;
 Full changelog and release notes: [url=https://github.com/JSONbored/infisical-aio/releases]GitHub Releases[/url]</Changes>
   <Category>Network:Security Tools:Utilities</Category>
@@ -275,10 +278,41 @@ Full changelog and release notes: [url=https://github.com/JSONbored/infisical-ai
 """
 
 
-def main() -> None:
-    OUTPUT.write_text(render_xml())
-    print(f"Wrote {OUTPUT}")
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Generate the canonical infisical-aio Community Apps template."
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=OUTPUT,
+        help="Where to write the generated XML.",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Fail if the generated XML does not match the current output file.",
+    )
+    args = parser.parse_args()
+
+    rendered = render_xml()
+    output_path = args.output
+    if args.check:
+        existing = output_path.read_text() if output_path.exists() else ""
+        if existing != rendered:
+            print(
+                f"{output_path} is out of date with the current upstream env schema. "
+                "Run scripts/generate_infisical_template.py to refresh it.",
+                file=sys.stderr,
+            )
+            return 1
+        print(f"{output_path} matches the generated template")
+        return 0
+
+    output_path.write_text(rendered)
+    print(f"Wrote {output_path}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

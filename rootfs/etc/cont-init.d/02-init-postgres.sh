@@ -33,7 +33,7 @@ if [[ -z ${AIO_INTERNAL_DB_PASSWORD-} ]]; then
 fi
 
 echo "[infisical-aio] Initializing bundled PostgreSQL cluster..."
-su -s /bin/bash postgres -c "${PG_BIN_DIR}/initdb -D /data/postgres"
+su -s /bin/bash postgres -c "${PG_BIN_DIR}/initdb -D /data/postgres --locale=C.UTF-8 --encoding=UTF8 --auth-local=peer --auth-host=scram-sha-256"
 su -s /bin/bash postgres -c "${PG_BIN_DIR}/pg_ctl -D /data/postgres -o \"-c listen_addresses='127.0.0.1'\" -w start"
 su -s /bin/bash postgres -c "psql postgres <<'SQL'
 DO \$\$

@@ -20,4 +20,10 @@ mkdir -p /data/redis
 chown -R redis:redis /data/redis
 chmod 700 /data/redis
 
-exec s6-setuidgid redis redis-server --bind 127.0.0.1 --dir /data/redis --appendonly yes --save 60 1
+exec /command/s6-setuidgid redis redis-server \
+    --bind 127.0.0.1 \
+    --protected-mode yes \
+    --dir /data/redis \
+    --appendonly yes \
+    --save 60 1 \
+    --maxmemory-policy noeviction

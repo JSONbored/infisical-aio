@@ -54,7 +54,7 @@ Run the source-repo-first checks before enabling automation:
 ```bash
 STRICT_PLACEHOLDERS=true bash scripts/validate-derived-repo.sh .
 python3 scripts/validate-template.py
-python3 scripts/generate_infisical_template.py
+python3 scripts/generate_infisical_template.py --check
 docker build -t infisical-aio:test .
 bash scripts/smoke-test.sh infisical-aio:test
 ```

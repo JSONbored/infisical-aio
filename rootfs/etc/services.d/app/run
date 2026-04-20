@@ -35,4 +35,9 @@ wait_for_redis
 
 /usr/local/bin/bootstrap-infisical.sh &
 
-exec s6-setuidgid non-root-user /bin/bash -lc 'cd /backend && exec ./standalone-entrypoint.sh'
+export HOME="/home/non-root-user"
+export USER="non-root-user"
+export LOGNAME="non-root-user"
+export PATH="/command:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+exec /command/s6-setuidgid non-root-user /bin/sh -c 'cd /backend && exec ./standalone-entrypoint.sh'

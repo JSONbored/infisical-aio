@@ -29,8 +29,9 @@
 - Infisical itself recommends external high-availability PostgreSQL and Redis for more serious production deployments.&#xD;
 - [code]SITE_URL[/code] matters. If you set it wrong, browser flows, links, email behavior, and some integrations will break in subtle ways.&#xD;
 - If you enable automatic bootstrap, you are creating a highly privileged instance-admin identity during first boot. Treat those credentials carefully.</Overview>
-  <Changes>[b]Latest release[/b]&#xD;
-- Initial Infisical AIO scaffold built from the current fleet template.&#xD;
+  <Changes>[b]Current source repo state[/b]&#xD;
+- Initial public release has not been cut yet.&#xD;
+- The source repo is validating the bundled PostgreSQL + Redis wrapper, first-run secret persistence, and the generated Infisical config surface.&#xD;
 &#xD;
 Full changelog and release notes: [url=https://github.com/JSONbored/infisical-aio/releases]GitHub Releases[/url]</Changes>
   <Category>Network:Security Tools:Utilities</Category>

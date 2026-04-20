@@ -202,6 +202,7 @@ jobs:
         if: ${{ needs.detect-changes.outputs.build_related == 'true' || needs.detect-changes.outputs.template_assets_related == 'true' }}
         run: |
           python3 scripts/validate-template.py
+          python3 scripts/generate_infisical_template.py --check
 
       - name: Validate derived repo placeholders
         run: |
