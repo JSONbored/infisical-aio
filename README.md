@@ -12,6 +12,7 @@ This is still a real secrets-management platform, not a toy appliance. The AIO w
 - auto-generates and persists required first-run secrets when you leave them blank
 - optionally bootstraps the first admin account and organization through the documented Infisical bootstrap API
 - exposes a wide CA template surface for power users while keeping the beginner path small
+- keeps the bundled beginner-path dependencies aligned with Infisical's tested support line by pinning internal PostgreSQL 16 and Redis 7.x
 
 ## Beginner Install
 
@@ -44,6 +45,7 @@ Advanced View is where the power-user surface lives:
 
 - The default AIO path embeds PostgreSQL and Redis in one container for convenience, not because that is the ideal long-term production topology.
 - Infisical itself recommends external high-availability PostgreSQL and Redis for more serious production deployments.
+- The bundled internal services are pinned to PostgreSQL 16 and Redis 7.x because those are within Infisical's currently documented support range.
 - `SITE_URL` matters. If you set it wrong, browser flows, links, email behavior, and some integrations will break in subtle ways.
 - If you enable automatic bootstrap, you are creating a highly privileged instance-admin identity during first boot. Treat those credentials carefully.
 

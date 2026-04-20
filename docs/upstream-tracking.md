@@ -2,6 +2,13 @@
 
 `infisical-aio` tracks the stable upstream `Infisical/infisical` release line and the Docker Hub image digest for `infisical/infisical`.
 
+The bundled beginner-path dependencies are pinned separately:
+
+- internal PostgreSQL stays on major `16`
+- internal Redis stays on major `7`
+
+Those majors are intentional because current Infisical requirements documentation says PostgreSQL has been extensively tested with version 16 and Redis should stay on 6.x or 7.x.
+
 ## Why
 
 This repo pins both:

@@ -6,6 +6,7 @@ Current status of the `infisical-aio` source repo before publish and CA sync.
 
 - pinned the official `infisical/infisical` image by upstream version and digest
 - bundled PostgreSQL and Redis defaults for the single-container Unraid path
+- pinned the bundled beginner-path services to PostgreSQL 16 and Redis 7.x
 - generated first-run secret persistence under `/config/aio/generated.env`
 - optional bootstrap automation via the documented `/api/v1/admin/bootstrap` endpoint
 - repo-specific smoke test, upstream tracking, and runtime wrapper behavior

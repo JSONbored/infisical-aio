@@ -3,7 +3,7 @@
 `infisical-aio` is intentionally opinionated:
 
 - the default path is one container
-- PostgreSQL and Redis are bundled by default
+- PostgreSQL 16 and Redis 7.x are bundled by default
 - external PostgreSQL and Redis remain available as advanced overrides
 - required first-run secrets are generated and persisted automatically if you leave them blank
 
@@ -24,6 +24,7 @@
 - `PORT` stays aligned with the container port exposed by the CA template.
 - user-supplied environment variables win over generated defaults
 - bundled PostgreSQL and Redis stay idle when you point the app at external services
+- the bundled services intentionally stay within Infisical's current support guidance instead of following Debian's newest majors automatically
 
 ## Bootstrap Behavior
 

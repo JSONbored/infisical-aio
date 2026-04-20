@@ -5,6 +5,8 @@ ARG UPSTREAM_IMAGE_DIGEST=sha256:2b3d18c8bf08a7113afed9de3048d80c505d5e85f8183ea
 FROM infisical/infisical:${UPSTREAM_VERSION}@${UPSTREAM_IMAGE_DIGEST}
 
 ARG S6_OVERLAY_VERSION=3.2.1.0
+ARG INTERNAL_POSTGRESQL_MAJOR=16
+ARG INTERNAL_REDIS_MAJOR=7
 ARG TARGETARCH
 
 LABEL org.opencontainers.image.source="https://github.com/JSONbored/infisical-aio" \
@@ -19,10 +21,23 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN apt-get update && apt-get -y dist-upgrade && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    gnupg \
     jq \
-    postgresql \
-    redis-server \
     xz-utils && \
+    install -d -m 0755 /etc/apt/keyrings /var/lib/apt/lists/partial && \
+    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /etc/apt/keyrings/postgresql.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/postgresql.gpg] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
+    curl -fsSL https://packages.redis.io/gpg | gpg --dearmor -o /etc/apt/keyrings/redis.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/redis.gpg] https://packages.redis.io/deb trixie main" > /etc/apt/sources.list.d/redis.list && \
+    apt-get update && \
+    POSTGRESQL_PACKAGE_VERSION="$(apt-cache madison postgresql-${INTERNAL_POSTGRESQL_MAJOR} | awk 'NR==1 {print $3}')" && \
+    REDIS_PACKAGE_VERSION="$(apt-cache madison redis-server | grep -m1 "6:${INTERNAL_REDIS_MAJOR}\\." | awk '{print $3}')" && \
+    test -n "${POSTGRESQL_PACKAGE_VERSION}" && test -n "${REDIS_PACKAGE_VERSION}" && \
+    apt-get install -y --no-install-recommends \
+      "postgresql-${INTERNAL_POSTGRESQL_MAJOR}=${POSTGRESQL_PACKAGE_VERSION}" \
+      "postgresql-client-${INTERNAL_POSTGRESQL_MAJOR}=${POSTGRESQL_PACKAGE_VERSION}" \
+      "redis-server=${REDIS_PACKAGE_VERSION}" \
+      "redis-tools=${REDIS_PACKAGE_VERSION}" && \
     curl -L -o /tmp/s6-overlay-noarch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" && \
     tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz && \
     case "${TARGETARCH}" in \
