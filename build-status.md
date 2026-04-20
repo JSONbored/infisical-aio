@@ -1,13 +1,18 @@
 # Build Status
 
-This repo is a template starter.
+Current status of the `infisical-aio` source repo before publish and CA sync.
 
-Before enabling automation for a derived repo:
+## Implemented
 
-- replace all placeholder values
-- run `STRICT_PLACEHOLDERS=true bash scripts/validate-derived-repo.sh .`
-- verify the smoke test matches the actual container behavior
-- set `ENABLE_AIO_AUTOMATION=true` and add `SYNC_TOKEN`
-- install Renovate for ongoing updates
-- configure upstream monitoring
-- confirm GHCR package visibility after first publish
+- pinned the official `infisical/infisical` image by upstream version and digest
+- bundled PostgreSQL and Redis defaults for the single-container Unraid path
+- generated first-run secret persistence under `/config/aio/generated.env`
+- optional bootstrap automation via the documented `/api/v1/admin/bootstrap` endpoint
+- repo-specific smoke test, upstream tracking, and runtime wrapper behavior
+
+## Remaining Before Publish
+
+- replace the placeholder icon in `assets/app-icon.png`
+- run strict validation and the local image smoke test
+- review the generated XML output for any final naming or grouping tweaks
+- publish the image, then sync XML and icon into `awesome-unraid`

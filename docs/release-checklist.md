@@ -2,35 +2,29 @@
 
 ## Before First Public Push
 
-- replace every placeholder value and example hostname
-- replace `assets/app-icon.png`
-- rename `template-aio.xml`
+- replace `assets/app-icon.png` with the real Infisical icon asset
 - confirm README, SECURITY, and FUNDING are accurate
 - confirm `Support`, `Project`, `TemplateURL`, and `Icon` URLs are correct
-- pin the upstream version explicitly
-- configure `upstream.toml`
-- add a screenshot or demo visual if the app has a UI
-- set the repo About description, topics, and social preview image
+- confirm the pinned upstream version and digest match the latest stable Infisical release you intend to ship
+- run `python3 scripts/generate_infisical_template.py`
 - run `STRICT_PLACEHOLDERS=true bash scripts/validate-derived-repo.sh .`
-- run the smoke test locally against the real image
+- run `python3 scripts/validate-template.py`
+- build and smoke test the image locally
 
 ## Before Enabling Actions
 
 - set `ENABLE_AIO_AUTOMATION=true`
-- add optional sync override variables only if you need to diverge from the repo-name defaults
 - add `SYNC_TOKEN`
 - confirm Renovate is installed for the repo
 - verify branch protection and secret scanning are enabled
-- confirm `validate-template` passes on PRs before expecting `smoke-test` only on `main` or explicit manual dispatch
+- confirm `validate-template` passes on PRs before expecting image publish from `main`
 
 ## Before Unraid Submission
 
 - install from the XML in a clean Unraid environment
-- verify first boot works with defaults
-- verify advanced settings stay optional
-- verify generated credentials persist if applicable
+- verify first boot works with bundled PostgreSQL and Redis defaults
+- verify external PostgreSQL and Redis overrides work
+- verify generated credentials persist across restarts
 - confirm GHCR package is public and pullable
 - confirm `awesome-unraid` contains the XML and icon
 - confirm the README first-run notes match the real install behavior
-- if using release tags, confirm version tags such as `v1.2.3` publish the expected image tags
-- confirm the upstream monitor opens the expected PR or issue path

@@ -1,25 +1,47 @@
-# Customization Guide
+# Power User Notes
 
-Use this file as the per-app advanced configuration guide in derived repos.
+`infisical-aio` is meant to boot cleanly with the bundled services first, then let you override pieces only when you actually need to.
 
-Recommended sections:
+## Internal vs External Services
 
-## 1. Internal vs External Services
+Default AIO path:
 
-Document which databases, search backends, or sidecars are internal by default and which can be overridden.
+- PostgreSQL: bundled
+- Redis: bundled
+- SMTP: external, optional
 
-## 2. AI Provider Overrides
+External override path:
 
-Document local providers, OpenAI-compatible endpoints, hosted APIs, and any required model variables.
+- set `DB_CONNECTION_URI` for external PostgreSQL
+- set `REDIS_URL`, `REDIS_SENTINEL_HOSTS`, or `REDIS_CLUSTER_HOSTS` for external Redis
 
-## 3. Remote Access
+When external PostgreSQL or Redis are configured, the bundled service stays idle rather than competing for ports or wasting CPU.
 
-Document required hostname, proxy, CSRF, and trusted-domain settings.
+## First-Run Secrets
 
-## 4. Storage Paths
+If left blank, the wrapper generates and persists:
 
-Document every mapped path and what data it stores.
+- `ENCRYPTION_KEY`
+- `AUTH_SECRET`
 
-## 5. Optional Integrations
+Those values are stored under `/config/aio/generated.env`. Back them up. If you lose them while keeping the database, you will have a broken deployment.
 
-Document sandboxes, web search, telemetry, TTS, auth providers, or any other optional upstream features.
+## Bootstrap Automation
+
+Optional bootstrap fields:
+
+- `AIO_BOOTSTRAP_EMAIL`
+- `AIO_BOOTSTRAP_PASSWORD`
+- `AIO_BOOTSTRAP_ORGANIZATION`
+- `AIO_BOOTSTRAP_SAVE_RESPONSE`
+
+The bootstrap flow only makes sense on a fresh instance. After that, the wrapper marks bootstrap as complete.
+
+## High-Impact Advanced Areas
+
+- SMTP: invitations, resets, and email-dependent auth flows
+- SSO/Auth: GitHub, GitLab, Google, and SAML/OIDC-related settings
+- Audit Logs: PostgreSQL audit storage toggles and optional ClickHouse sink
+- Telemetry: OTEL, DataDog, and self-host telemetry toggles
+- Secret Scanning and App Connections: large advanced surface, mostly for power users and enterprise-like setups
+- Gateway/PAM/HSM: real advanced operators only
