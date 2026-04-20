@@ -2,6 +2,7 @@
 # shellcheck shell=bash
 set -euo pipefail
 
+# shellcheck disable=SC1091
 source /usr/local/bin/env-helpers.sh
 
 load_generated_env
@@ -33,16 +34,15 @@ if [[ -z ${AIO_BOOTSTRAP_EMAIL-} ]] || [[ -z ${AIO_BOOTSTRAP_PASSWORD-} ]] || [[
 fi
 
 tmp_response="$(mktemp)"
-http_code="$(
-	curl -sS -o "${tmp_response}" -w '%{http_code}' \
-		-H 'Content-Type: application/json' \
-		-d "$(jq -cn \
-			--arg email "${AIO_BOOTSTRAP_EMAIL}" \
-			--arg password "${AIO_BOOTSTRAP_PASSWORD}" \
-			--arg organization "${AIO_BOOTSTRAP_ORGANIZATION}" \
-			'{email: $email, password: $password, organization: $organization}')" \
-		-X POST "${BOOTSTRAP_URL}"
-)"
+request_body="$(jq -cn \
+	--arg email "${AIO_BOOTSTRAP_EMAIL}" \
+	--arg password "${AIO_BOOTSTRAP_PASSWORD}" \
+	--arg organization "${AIO_BOOTSTRAP_ORGANIZATION}" \
+	'{email: $email, password: $password, organization: $organization}')"
+http_code="$(curl -sS -o "${tmp_response}" -w '%{http_code}' \
+	-H 'Content-Type: application/json' \
+	-d "${request_body}" \
+	-X POST "${BOOTSTRAP_URL}")"
 
 if [[ ${http_code} == "200" ]]; then
 	echo "[infisical-aio] Instance bootstrap completed."

@@ -2,6 +2,7 @@
 # shellcheck shell=bash
 set -euo pipefail
 
+# shellcheck disable=SC1091
 source /usr/local/bin/env-helpers.sh
 
 load_generated_env

@@ -4,13 +4,14 @@ from __future__ import annotations
 import argparse
 import pathlib
 import re
-import subprocess
+import subprocess  # nosec B404 - fixed-path git invocations against the local repository are intentional
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_CHANGELOG = ROOT / "CHANGELOG.md"
 DEFAULT_DOCKERFILE = ROOT / "Dockerfile"
 DEFAULT_UPSTREAM = ROOT / "upstream.toml"
 AIO_TAG_PATTERN = "*-aio.*"
+GIT_BIN = "/usr/bin/git"
 
 
 def load_upstream_version_key(path: pathlib.Path) -> str:
@@ -42,13 +43,23 @@ def read_upstream_version(dockerfile: pathlib.Path, upstream: pathlib.Path) -> s
 
 
 def git_tags() -> list[str]:
-    output = subprocess.check_output(["git", "tag", "--list"], cwd=ROOT, text=True)
+    output = subprocess.check_output(  # nosec B603
+        [GIT_BIN, "tag", "--list"], cwd=ROOT, text=True
+    )
     return [line.strip() for line in output.splitlines() if line.strip()]
 
 
 def latest_aio_release_tag() -> str | None:
     completed = subprocess.run(
-        ["git", "describe", "--tags", "--abbrev=0", "--match", AIO_TAG_PATTERN, "HEAD"],
+        [
+            GIT_BIN,
+            "describe",
+            "--tags",
+            "--abbrev=0",
+            "--match",
+            AIO_TAG_PATTERN,
+            "HEAD",
+        ],  # nosec B603
         cwd=ROOT,
         text=True,
         capture_output=True,
@@ -78,7 +89,9 @@ def has_unreleased_changes(dockerfile: pathlib.Path, upstream: pathlib.Path) -> 
     if latest_tag is None:
         return True
     output = subprocess.check_output(
-        ["git", "log", "--format=%s", f"{latest_tag}..HEAD"], cwd=ROOT, text=True
+        [GIT_BIN, "log", "--format=%s", f"{latest_tag}..HEAD"],
+        cwd=ROOT,
+        text=True,  # nosec B603
     )
     return any(line.strip() for line in output.splitlines())
 
@@ -136,7 +149,7 @@ def find_release_commit(version: str) -> str:
     with_suffix = re.compile(rf"^{re.escape(exact)} \(#\d+\)$")
 
     output = subprocess.check_output(
-        ["git", "log", "--format=%H\t%s", "HEAD"], cwd=ROOT, text=True
+        [GIT_BIN, "log", "--format=%H\t%s", "HEAD"], cwd=ROOT, text=True  # nosec B603
     )
     for line in output.splitlines():
         if not line.strip():

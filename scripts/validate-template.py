@@ -3,9 +3,7 @@ from __future__ import annotations
 
 import os
 import sys
-
-# nosec B405 - this validator reads a trusted local repository XML file only
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405 - this validator reads a trusted local repository XML file only
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,7 +52,7 @@ def main() -> int:
         return fail(f"Template XML not found: {xml_path}")
 
     # nosec B314 - trusted local template file only
-    tree = ET.parse(xml_path)
+    tree = ET.parse(xml_path)  # nosec B314 - trusted local template file only
     root = tree.getroot()
 
     for field in REQUIRED_TEXT_FIELDS:
@@ -84,7 +82,10 @@ def main() -> int:
             )
     else:
         template_release_url = f"https://github.com/JSONbored/{ROOT.name}/releases"
-        if PLACEHOLDER_RELEASE_URL not in changes and template_release_url not in changes:
+        if (
+            PLACEHOLDER_RELEASE_URL not in changes
+            and template_release_url not in changes
+        ):
             return fail(
                 f"{xml_path.name} placeholder <Changes> block should include either "
                 f"{PLACEHOLDER_RELEASE_URL} or {template_release_url}"

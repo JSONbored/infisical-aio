@@ -1,10 +1,11 @@
 name: Release / Template
 
 on:
+  # checkov:skip=CKV_GHA_7: release automation is intentionally manual and requires a controlled operator choice between prepare and publish
   workflow_dispatch:
     inputs:
       action:
-        description: "Release action to run"
+        description: Release action to run
         required: true
         default: prepare
         type: choice

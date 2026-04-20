@@ -5,12 +5,12 @@ import argparse
 import html
 import pathlib
 import re
-import subprocess
+import subprocess  # nosec B404 - fixed-path git configuration read from the local repository is intentional
 import sys
-
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_CHANGELOG = ROOT / "CHANGELOG.md"
+GIT_BIN = "/usr/bin/git"
 
 
 def resolve_template_path() -> pathlib.Path:
@@ -28,7 +28,7 @@ def resolve_template_path() -> pathlib.Path:
 def resolve_release_url() -> str:
     try:
         remote = subprocess.check_output(
-            ["git", "config", "--get", "remote.origin.url"],
+            [GIT_BIN, "config", "--get", "remote.origin.url"],  # nosec B603
             cwd=ROOT,
             text=True,
         ).strip()

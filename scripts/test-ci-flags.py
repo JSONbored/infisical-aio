@@ -18,21 +18,30 @@ def main() -> int:
     ]
 
     for idx, case in enumerate(cases, start=1):
-        event_name, ref, smoke_input, publish_input, expected_smoke, expected_publish = case
+        (
+            event_name,
+            ref,
+            smoke_input,
+            publish_input,
+            expected_smoke,
+            expected_publish,
+        ) = case
         result = resolve_flags(
             event_name=event_name,
             ref=ref,
             run_smoke_test_input=smoke_input,
             publish_images_input=publish_input,
         )
-        assert result.run_smoke_requested == expected_smoke, (
-            f"case #{idx} expected run_smoke_requested={expected_smoke}, "
-            f"got {result.run_smoke_requested}"
-        )
-        assert result.publish_requested == expected_publish, (
-            f"case #{idx} expected publish_requested={expected_publish}, "
-            f"got {result.publish_requested}"
-        )
+        if result.run_smoke_requested != expected_smoke:
+            raise RuntimeError(
+                f"case #{idx} expected run_smoke_requested={expected_smoke}, "
+                f"got {result.run_smoke_requested}"
+            )
+        if result.publish_requested != expected_publish:
+            raise RuntimeError(
+                f"case #{idx} expected publish_requested={expected_publish}, "
+                f"got {result.publish_requested}"
+            )
 
     print(f"ci_flags tests passed ({len(cases)} cases)")
     return 0

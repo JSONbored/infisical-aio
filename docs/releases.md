@@ -1,11 +1,11 @@
 # Releases
 
-`infisical-aio` uses upstream-version-plus-AIO-revision releases such as `v0.159.18-aio.1`.
+`infisical-aio` uses upstream-version-plus-AIO-revision releases such as `v0.159.16-aio.1`.
 
 ## Version Format
 
-- first wrapper release for upstream `v0.159.18`: `v0.159.18-aio.1`
-- second wrapper-only release on the same upstream: `v0.159.18-aio.2`
+- first wrapper release for upstream `v0.159.16`: `v0.159.16-aio.1`
+- second wrapper-only release on the same upstream: `v0.159.16-aio.2`
 - first wrapper release after upgrading upstream again: `vX.Y.Z-aio.1`
 
 ## Published Image Tags
@@ -14,7 +14,7 @@ Every `main` build publishes:
 
 - `latest`
 - the exact pinned upstream version
-- the exact release package tag like `v0.159.18-aio.1`
+- the exact release package tag like `v0.159.16-aio.1`
 - `sha-<commit>`
 
 ## Release Flow

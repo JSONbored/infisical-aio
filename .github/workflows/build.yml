@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     tags:
-      - "v*"
+      - v*
     paths:
       - Dockerfile
       - "*.xml"
@@ -25,20 +25,21 @@ on:
       - upstream.toml
       - renovate.json
       - .github/workflows/**
+  # checkov:skip=CKV_GHA_7: manual operators need bounded inputs to run smoke tests, publish images, and sync awesome-unraid on demand
   workflow_dispatch:
     inputs:
       run_smoke_test:
-        description: "Run the smoke-test job"
+        description: Run the smoke-test job
         required: false
         default: false
         type: boolean
       publish_images:
-        description: "Publish image tags from the current ref"
+        description: Publish image tags from the current ref
         required: false
         default: false
         type: boolean
       sync_awesome_unraid:
-        description: "Open or refresh the awesome-unraid sync pull request"
+        description: Open or refresh the awesome-unraid sync pull request
         required: false
         default: false
         type: boolean

@@ -37,7 +37,7 @@ stable_only = true
 ## Dockerfile Pinning
 
 ```dockerfile
-ARG UPSTREAM_VERSION=v0.159.18
+ARG UPSTREAM_VERSION=v0.159.16
 ARG UPSTREAM_IMAGE_DIGEST=sha256:...
 FROM infisical/infisical:${UPSTREAM_VERSION}@${UPSTREAM_IMAGE_DIGEST}
 ```

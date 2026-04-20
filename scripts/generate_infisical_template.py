@@ -4,17 +4,15 @@ from __future__ import annotations
 import argparse
 import html
 import re
-import subprocess
 import sys
 from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
+from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCKERFILE = ROOT / "Dockerfile"
 OUTPUT = ROOT / "infisical-aio.xml"
-
-
-def sh(cmd: list[str]) -> str:
-    return subprocess.check_output(cmd, cwd=ROOT, text=True).strip()
 
 
 def docker_arg(name: str) -> str:
@@ -27,7 +25,18 @@ def docker_arg(name: str) -> str:
 
 def fetch_env_source(version: str) -> str:
     url = f"https://raw.githubusercontent.com/Infisical/infisical/{version}/backend/src/lib/config/env.ts"
-    return sh(["curl", "-fsSL", url])
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or parsed.netloc != "raw.githubusercontent.com":
+        raise SystemExit(f"Refusing to fetch env schema from unexpected URL: {url}")
+    try:
+        with urlopen(
+            url, timeout=30
+        ) as response:  # nosec B310 - scheme and host are validated immediately above
+            return response.read().decode("utf-8")
+    except (HTTPError, URLError) as exc:
+        raise SystemExit(
+            f"Unable to fetch upstream env schema from {url}: {exc}"
+        ) from exc
 
 
 def parse_schema_keys(source: str) -> list[str]:
@@ -51,25 +60,25 @@ SKIP_KEYS = {
 }
 MASK_HINTS = ("PASSWORD", "SECRET", "TOKEN", "KEY", "CERT", "DSN")
 BOOL_DEFAULTS = {
-    "TELEMETRY_ENABLED": "false|true",
-    "QUEUE_WORKERS_ENABLED": "true|false",
-    "DISABLE_SECRET_SCANNING": "false|true",
-    "CLICKHOUSE_AUDIT_LOG_ENABLED": "true|false",
-    "AUDIT_LOG_STREAMS_ENABLED": "true|false",
-    "DISABLE_POSTGRES_AUDIT_LOG_STORAGE": "false|true",
-    "KUBERNETES_AUTO_FETCH_SERVICE_ACCOUNT_TOKEN": "false|true",
-    "SMTP_IGNORE_TLS": "false|true",
-    "SMTP_REQUIRE_TLS": "true|false",
-    "SMTP_TLS_REJECT_UNAUTHORIZED": "true|false",
-    "OTEL_TELEMETRY_COLLECTION_ENABLED": "false|true",
-    "SHOULD_USE_DATADOG_TRACER": "false|true",
-    "DATADOG_PROFILING_ENABLED": "false|true",
-    "ALLOW_INTERNAL_IP_CONNECTIONS": "false|true",
-    "USE_PG_QUEUE": "false|true",
-    "SHOULD_INIT_PG_QUEUE": "false|true",
-    "DYNAMIC_SECRET_ALLOW_INTERNAL_IP": "false|true",
-    "ENABLE_MSSQL_SECRET_ROTATION_ENCRYPT": "true|false",
-    "MAINTENANCE_MODE": "false|true",
+    "TELEMETRY_ENABLED": "false|true",  # nosec B105
+    "QUEUE_WORKERS_ENABLED": "true|false",  # nosec B105
+    "DISABLE_SECRET_SCANNING": "false|true",  # nosec B105
+    "CLICKHOUSE_AUDIT_LOG_ENABLED": "true|false",  # nosec B105
+    "AUDIT_LOG_STREAMS_ENABLED": "true|false",  # nosec B105
+    "DISABLE_POSTGRES_AUDIT_LOG_STORAGE": "false|true",  # nosec B105
+    "KUBERNETES_AUTO_FETCH_SERVICE_ACCOUNT_TOKEN": "false|true",  # nosec B105
+    "SMTP_IGNORE_TLS": "false|true",  # nosec B105
+    "SMTP_REQUIRE_TLS": "true|false",  # nosec B105
+    "SMTP_TLS_REJECT_UNAUTHORIZED": "true|false",  # nosec B105
+    "OTEL_TELEMETRY_COLLECTION_ENABLED": "false|true",  # nosec B105
+    "SHOULD_USE_DATADOG_TRACER": "false|true",  # nosec B105
+    "DATADOG_PROFILING_ENABLED": "false|true",  # nosec B105
+    "ALLOW_INTERNAL_IP_CONNECTIONS": "false|true",  # nosec B105
+    "USE_PG_QUEUE": "false|true",  # nosec B105
+    "SHOULD_INIT_PG_QUEUE": "false|true",  # nosec B105
+    "DYNAMIC_SECRET_ALLOW_INTERNAL_IP": "false|true",  # nosec B105
+    "ENABLE_MSSQL_SECRET_ROTATION_ENCRYPT": "true|false",  # nosec B105
+    "MAINTENANCE_MODE": "false|true",  # nosec B105
 }
 MANUAL_KEYS = {
     "SITE_URL",
@@ -139,13 +148,13 @@ def description_for(key: str) -> str:
     custom = {
         "SITE_URL": "Canonical public URL for your instance, including http or https. This should match the real URL users and reverse proxies will use.",
         "ENCRYPTION_KEY": "Optional manual override for the platform encryption key. Leave blank to let the wrapper generate and persist it automatically.",
-        "AUTH_SECRET": "Optional manual override for the JWT auth secret. Leave blank to let the wrapper generate and persist it automatically.",
+        "AUTH_SECRET": "Optional manual override for the JWT auth secret. Leave blank to let the wrapper generate and persist it automatically.",  # nosec B105
         "DB_CONNECTION_URI": "Leave blank for the bundled PostgreSQL database. Set this to use an external Postgres instance instead.",
         "REDIS_URL": "Leave blank for the bundled Redis instance. Set this to use an external Redis instance instead.",
         "SMTP_HOST": "Optional SMTP server hostname for transactional email features such as invites and MFA email flows.",
         "SMTP_PORT": "SMTP server port. Default upstream value is 587.",
         "SMTP_USERNAME": "Optional SMTP username.",
-        "SMTP_PASSWORD": "Optional SMTP password.",
+        "SMTP_PASSWORD": "Optional SMTP password.",  # nosec B105
         "SMTP_FROM_ADDRESS": "Optional sender email address used for Infisical emails.",
         "SMTP_FROM_NAME": "Optional sender display name. Default is Infisical.",
         "TELEMETRY_ENABLED": "Usage telemetry toggle. The AIO wrapper defaults this to false for privacy-first self-hosting.",

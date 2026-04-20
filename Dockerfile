@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1@sha256:2780b5c3bab67f1f76c781860de469442999ed1a0d7992a5efdf2cffc0e3d769
 # checkov:skip=CKV_DOCKER_3: s6-overlay requires root init so bundled services can prepare state before dropping privileges
-ARG UPSTREAM_VERSION=v0.159.18
-ARG UPSTREAM_IMAGE_DIGEST=sha256:2b3d18c8bf08a7113afed9de3048d80c505d5e85f8183ea27830362a8ac33c1b
+ARG UPSTREAM_VERSION=v0.159.16
+ARG UPSTREAM_IMAGE_DIGEST=sha256:5f896e2907661926cc92dcd88e5d7a383d5b91df4cb0127528d47235f96f4daa
 FROM infisical/infisical:${UPSTREAM_VERSION}@${UPSTREAM_IMAGE_DIGEST}
 
 ARG S6_OVERLAY_VERSION=3.2.1.0
@@ -13,17 +13,19 @@ LABEL org.opencontainers.image.source="https://github.com/JSONbored/infisical-ai
       org.opencontainers.image.title="infisical-aio" \
       org.opencontainers.image.description="Infisical packaged as a single-container Unraid AIO image with bundled PostgreSQL and Redis defaults"
 
+# checkov:skip=CKV_DOCKER_8: s6-overlay entrypoint must start as root so init scripts can prepare data directories and then drop privileges per service
+# hadolint ignore=DL3002
 USER root
 ENV DEBIAN_FRONTEND=noninteractive
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 RUN apt-get update && apt-get -y dist-upgrade && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    curl \
-    gnupg \
-    jq \
-    xz-utils && \
+    ca-certificates="$(apt-cache madison ca-certificates | awk 'NR==1 {print $3}')" \
+    curl="$(apt-cache madison curl | awk 'NR==1 {print $3}')" \
+    gnupg="$(apt-cache madison gnupg | awk 'NR==1 {print $3}')" \
+    jq="$(apt-cache madison jq | awk 'NR==1 {print $3}')" \
+    xz-utils="$(apt-cache madison xz-utils | awk 'NR==1 {print $3}')" && \
     install -d -m 0755 /etc/apt/keyrings /var/lib/apt/lists/partial && \
     curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /etc/apt/keyrings/postgresql.gpg && \
     echo "deb [signed-by=/etc/apt/keyrings/postgresql.gpg] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \

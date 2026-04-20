@@ -11,7 +11,6 @@ import urllib.error
 import urllib.request
 from typing import NoReturn
 
-
 ROOT = pathlib.Path(".")
 UPSTREAM_FILE = ROOT / "upstream.toml"
 DOCKERFILE = ROOT / "Dockerfile"
@@ -101,10 +100,16 @@ def github_headers() -> dict[str, str]:
 
 
 def latest_github_tag(repo: str, stable_only: bool) -> str:
-    data = http_json(f"https://api.github.com/repos/{repo}/tags?per_page=100", github_headers())
+    data = http_json(
+        f"https://api.github.com/repos/{repo}/tags?per_page=100", github_headers()
+    )
     if not isinstance(data, list):
         fail(f"Unexpected GitHub tags response for {repo}")
-    tags = [entry["name"] for entry in data if isinstance(entry, dict) and isinstance(entry.get("name"), str)]
+    tags = [
+        entry["name"]
+        for entry in data
+        if isinstance(entry, dict) and isinstance(entry.get("name"), str)
+    ]
     candidates = filter_versions(tags, stable_only)
     if not candidates:
         fail(f"No matching tags found for upstream repo {repo}")
@@ -112,7 +117,9 @@ def latest_github_tag(repo: str, stable_only: bool) -> str:
 
 
 def latest_github_release(repo: str, stable_only: bool) -> str:
-    data = http_json(f"https://api.github.com/repos/{repo}/releases?per_page=100", github_headers())
+    data = http_json(
+        f"https://api.github.com/repos/{repo}/releases?per_page=100", github_headers()
+    )
     if not isinstance(data, list):
         fail(f"Unexpected GitHub releases response for {repo}")
     releases: list[str] = []
@@ -181,7 +188,9 @@ def ghcr_digest_for_tag(image: str, tag: str) -> str:
             f"{exc.code} {exc.reason}"
         )
     except urllib.error.URLError as exc:
-        fail(f"Network error while requesting GHCR manifest for {image}:{tag}: {exc.reason}")
+        fail(
+            f"Network error while requesting GHCR manifest for {image}:{tag}: {exc.reason}"
+        )
 
     fail(f"Could not determine digest for GHCR image {image}:{tag}")
 
@@ -355,7 +364,11 @@ def main() -> None:
 
     branch_name = f"codex/upstream-{latest_version}"
     pr_title = f"chore(deps): bump upstream to {latest_version}"
-    if latest_version == current_version and latest_digest and latest_digest != current_digest:
+    if (
+        latest_version == current_version
+        and latest_digest
+        and latest_digest != current_digest
+    ):
         branch_name = f"codex/upstream-{latest_version}-digest-refresh"
         pr_title = f"chore(deps): refresh upstream digest for {latest_version}"
 
