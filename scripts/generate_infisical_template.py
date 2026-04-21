@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCKERFILE = ROOT / "Dockerfile"
 OUTPUT = ROOT / "infisical-aio.xml"
 CHANGELOG = ROOT / "CHANGELOG.md"
+RELEASES_URL = "https://github.com/JSONbored/infisical-aio/releases"
 
 
 def docker_arg(name: str) -> str:
@@ -59,7 +60,17 @@ SKIP_KEYS = {
     "INFISICAL_PLATFORM_VERSION",
     "BCRYPT_SALT_ROUND",
 }
-MASK_HINTS = ("PASSWORD", "SECRET", "TOKEN", "KEY", "CERT", "DSN")
+MASK_HINTS = (
+    "PASSWORD",
+    "SECRET",
+    "TOKEN",
+    "KEY",
+    "CERT",
+    "DSN",
+    "PIN",
+    "URI",
+    "CREDENTIAL",
+)
 BOOL_DEFAULTS = {
     "TELEMETRY_ENABLED": "false|true",  # nosec B105
     "QUEUE_WORKERS_ENABLED": "true|false",  # nosec B105
@@ -249,11 +260,10 @@ def render_changes() -> str:
     except ValueError:
         return fallback_changes()
 
-    lines: list[str] = [release_heading(version, CHANGELOG)]
+    lines: list[str] = [release_heading(version, CHANGELOG), f"- Release {version}."]
     for line in notes.splitlines():
-        stripped = line.rstrip()
+        stripped = line.strip()
         if not stripped:
-            lines.append("")
             continue
         if stripped.startswith("<!--") and stripped.endswith("-->"):
             continue
@@ -264,9 +274,15 @@ def render_changes() -> str:
         if stripped.startswith("## "):
             continue
         if stripped.startswith("### "):
+            continue
+        if stripped.startswith("- "):
             lines.append(stripped)
             continue
-        lines.append(stripped)
+        lines.append(f"- {stripped}")
+    lines.append("")
+    lines.append(
+        f"Full changelog and release notes: [url={RELEASES_URL}]GitHub Releases[/url]"
+    )
     return html.escape("\n".join(lines).strip(), quote=False).replace("\n", "&#xD;\n")
 
 
