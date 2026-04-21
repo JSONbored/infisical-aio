@@ -10,6 +10,21 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_CHANGELOG = ROOT / "CHANGELOG.md"
 GIT_BIN = "/usr/bin/git"
+SUMMARY_OVERRIDES = {
+    "v0.159.16-aio.1": [
+        "Release v0.159.16-aio.1.",
+        "Expand the Infisical template surface and advanced options.",
+        "Harden bundled and external runtime behavior.",
+        "Improve validation, release flow, and template metadata.",
+    ]
+}
+NOISE_PATTERNS = (
+    r"^merge\b",
+    r"^initial commit\b",
+    r"made their first contribution",
+    r"^update non-major infrastructure updates\b",
+)
+MAX_SUMMARY_ITEMS = 3
 
 
 def resolve_template_path() -> pathlib.Path:
@@ -68,10 +83,16 @@ def release_heading(version: str, changelog: pathlib.Path) -> str:
 
 def build_changes_body(version: str, notes: str, changelog: pathlib.Path) -> str:
     lines: list[str] = [release_heading(version, changelog)]
+    override = SUMMARY_OVERRIDES.get(version)
+    if override:
+        lines.extend(f"- {item}" for item in override)
+        return "\n".join(lines).rstrip() + "\n"
+
+    lines.append(f"- Release {version}.")
+    added = 0
     for line in notes.splitlines():
-        stripped = line.rstrip()
+        stripped = line.strip()
         if not stripped:
-            lines.append("")
             continue
         if stripped.startswith("<!--") and stripped.endswith("-->"):
             continue
@@ -82,10 +103,17 @@ def build_changes_body(version: str, notes: str, changelog: pathlib.Path) -> str
         if stripped.startswith("## "):
             continue
         if stripped.startswith("### "):
-            lines.append(stripped)
             continue
-        lines.append(stripped)
-    return "\n".join(lines).strip()
+        if any(re.search(pattern, stripped, re.IGNORECASE) for pattern in NOISE_PATTERNS):
+            continue
+        if stripped.startswith("- "):
+            lines.append(stripped)
+        else:
+            lines.append(f"- {stripped}")
+        added += 1
+        if added >= MAX_SUMMARY_ITEMS:
+            break
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def encode_for_template(body: str) -> str:

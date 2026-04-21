@@ -59,7 +59,7 @@ SKIP_KEYS = {
     "INFISICAL_PLATFORM_VERSION",
     "BCRYPT_SALT_ROUND",
 }
-MASK_HINTS = ("PASSWORD", "SECRET", "TOKEN", "KEY", "CERT", "DSN")
+MASK_HINTS = ("PASSWORD", "SECRET", "TOKEN", "KEY", "CERT", "DSN", "PIN", "URI", "CREDENTIAL")
 BOOL_DEFAULTS = {
     "TELEMETRY_ENABLED": "false|true",  # nosec B105
     "QUEUE_WORKERS_ENABLED": "true|false",  # nosec B105
@@ -188,6 +188,23 @@ def fallback_changes() -> str:
     return html.escape(body, quote=False).replace("\n", "&#xD;\n")
 
 
+SUMMARY_OVERRIDES = {
+    "v0.159.16-aio.1": [
+        "Release v0.159.16-aio.1.",
+        "Expand the Infisical template surface and advanced options.",
+        "Harden bundled and external runtime behavior.",
+        "Improve validation, release flow, and template metadata.",
+    ]
+}
+NOISE_PATTERNS = (
+    r"^merge\b",
+    r"^initial commit\b",
+    r"made their first contribution",
+    r"^update non-major infrastructure updates\b",
+)
+MAX_SUMMARY_ITEMS = 3
+
+
 def latest_changelog_version(changelog: Path) -> str | None:
     pattern = re.compile(r"^##\s+(?:\[([^\]]+)\]\([^)]+\)|([^\s]+))")
     for line in changelog.read_text().splitlines():
@@ -250,10 +267,17 @@ def render_changes() -> str:
         return fallback_changes()
 
     lines: list[str] = [release_heading(version, CHANGELOG)]
+    override = SUMMARY_OVERRIDES.get(version)
+    if override:
+        lines.extend(f"- {item}" for item in override)
+        body = "\n".join(lines).rstrip() + "\n"
+        return html.escape(body, quote=False).replace("\n", "&#xD;\n")
+
+    lines.append(f"- Release {version}.")
+    added = 0
     for line in notes.splitlines():
-        stripped = line.rstrip()
+        stripped = line.strip()
         if not stripped:
-            lines.append("")
             continue
         if stripped.startswith("<!--") and stripped.endswith("-->"):
             continue
@@ -264,10 +288,17 @@ def render_changes() -> str:
         if stripped.startswith("## "):
             continue
         if stripped.startswith("### "):
-            lines.append(stripped)
             continue
-        lines.append(stripped)
-    return html.escape("\n".join(lines).strip(), quote=False).replace("\n", "&#xD;\n")
+        if any(re.search(pattern, stripped, re.IGNORECASE) for pattern in NOISE_PATTERNS):
+            continue
+        if stripped.startswith("- "):
+            lines.append(stripped)
+        else:
+            lines.append(f"- {stripped}")
+        added += 1
+        if added >= MAX_SUMMARY_ITEMS:
+            break
+    return html.escape("\n".join(lines).rstrip() + "\n", quote=False).replace("\n", "&#xD;\n")
 
 
 def render_xml() -> str:
