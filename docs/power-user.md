@@ -14,6 +14,7 @@ External override path:
 
 - set `DB_CONNECTION_URI` for external PostgreSQL
 - set `REDIS_URL`, `REDIS_SENTINEL_HOSTS`, or `REDIS_CLUSTER_HOSTS` for external Redis
+- set `NODE_EXTRA_CA_CERTS` to a PEM path under `/config` if those external services use a private or self-signed CA
 
 When external PostgreSQL or Redis are configured, the bundled service stays idle rather than competing for ports or wasting CPU.
 
@@ -43,5 +44,6 @@ The bootstrap flow only makes sense on a fresh instance. After that, the wrapper
 - SSO/Auth: GitHub, GitLab, Google, and SAML/OIDC-related settings
 - Audit Logs: PostgreSQL audit storage toggles and optional ClickHouse sink
 - Telemetry: OTEL, DataDog, and self-host telemetry toggles
+- Prometheus metrics: if you set `OTEL_TELEMETRY_COLLECTION_ENABLED=true` and `OTEL_EXPORT_TYPE=prometheus`, also publish host port `9464`
 - Secret Scanning and App Connections: large advanced surface, mostly for power users and enterprise-like setups
 - Gateway/PAM/HSM: real advanced operators only

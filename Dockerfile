@@ -62,7 +62,7 @@ RUN find /etc/cont-init.d -type f -exec chmod +x {} \; && \
     find /usr/local/bin -type f -exec chmod +x {} \;
 
 VOLUME ["/config", "/data"]
-EXPOSE 8080
+EXPOSE 8080 9464
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
   CMD curl -fsS http://127.0.0.1:8080/api/status >/dev/null || exit 1

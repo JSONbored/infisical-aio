@@ -26,6 +26,11 @@
 - bundled PostgreSQL and Redis stay idle when you point the app at external services
 - the bundled services intentionally stay within Infisical's current support guidance instead of following Debian's newest majors automatically
 
+## Advanced Wrapper Extras
+
+- `NODE_EXTRA_CA_CERTS` is exposed for private or self-signed CA bundles used by external Redis or other outbound TLS clients. Put the PEM file somewhere under `/config`, such as `/config/aio/certs/custom-ca.pem`.
+- Prometheus pull-mode metrics are supported by the upstream app on port `9464`, but the CA template leaves that host port blank by default. Only publish it when you intentionally enable `OTEL_TELEMETRY_COLLECTION_ENABLED=true` and `OTEL_EXPORT_TYPE=prometheus`.
+
 ## Bootstrap Behavior
 
 The wrapper supports two valid first-boot paths:

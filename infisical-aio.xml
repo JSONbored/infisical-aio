@@ -23,6 +23,7 @@
 [b]Power Users (Advanced View)[/b]&#xD;
 - Advanced View exposes the broader Infisical self-hosting environment surface, including SMTP, SSO, audit logging, telemetry, secret scanning, app connections, gateway/PAM controls, and expert network/security knobs.&#xD;
 - Leave [code]DB_CONNECTION_URI[/code] and [code]REDIS_URL[/code] blank for the easiest bundled path. Set them only if you want to use external PostgreSQL or Redis instead of the embedded services.&#xD;
+- If you enable Prometheus metrics export, publish the optional [code]9464[/code] metrics port in Advanced View so your scraper can reach it.&#xD;
 &#xD;
 [b]Important Notes[/b]&#xD;
 - The default AIO path embeds PostgreSQL and Redis for convenience. That is simpler for first boot, but it is not the same as a highly available production deployment.&#xD;
@@ -70,6 +71,7 @@
   <Environment/>
 
   <Config Name="Web UI Port" Target="8080" Default="8080" Mode="tcp" Description="Main Infisical web and API port." Type="Port" Display="always" Required="true" Mask="false">8080</Config>
+  <Config Name="Prometheus Metrics Port" Target="9464" Default="" Mode="tcp" Description="Optional host port for OTEL Prometheus metrics. Leave blank unless you enable OTEL_TELEMETRY_COLLECTION_ENABLED=true and OTEL_EXPORT_TYPE=prometheus." Type="Port" Display="advanced" Required="false" Mask="false"></Config>
   <Config Name="AppData - Config" Target="/config" Default="/mnt/user/appdata/infisical-aio/config" Mode="rw" Description="Persistent wrapper state, generated first-run secrets, and optional bootstrap artifacts." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/infisical-aio/config</Config>
   <Config Name="AppData - Data" Target="/data" Default="/mnt/user/appdata/infisical-aio/data" Mode="rw" Description="Persistent bundled PostgreSQL and Redis data for the default AIO path." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/infisical-aio/data</Config>
   <Config Name="Site URL" Target="SITE_URL" Default="http://tower.local:8080" Mode="" Description="Canonical public URL for your instance, including http or https. This should match the real URL users and reverse proxies will use." Type="Variable" Display="always" Required="true" Mask="false">http://tower.local:8080</Config>
@@ -79,6 +81,7 @@
   <Config Name="Initial Organization Name" Target="INITIAL_ORGANIZATION_NAME" Default="" Mode="" Description="Optional default organization name shown during initial signup when you are not using API bootstrap." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="External PostgreSQL DB_CONNECTION_URI" Target="DB_CONNECTION_URI" Default="" Mode="" Description="Leave blank for the bundled PostgreSQL database. Set this to use an external Postgres instance instead." Type="Variable" Display="advanced" Required="false" Mask="true"/>
   <Config Name="External Redis REDIS_URL" Target="REDIS_URL" Default="" Mode="" Description="Leave blank for the bundled Redis instance. Set this to use an external Redis instance instead." Type="Variable" Display="advanced" Required="false" Mask="true"/>
+  <Config Name="[Network/Security] NODE_EXTRA_CA_CERTS" Target="NODE_EXTRA_CA_CERTS" Default="" Mode="" Description="Optional path to a PEM CA bundle inside the container for private or self-signed upstream certificates, such as external Redis over rediss://. Because /config is persistent, a typical path is /config/aio/certs/custom-ca.pem." Type="Variable" Display="advanced" Required="false" Mask="false"/>
 
   <Config Name="Auto Bootstrap Admin Email" Target="AIO_BOOTSTRAP_EMAIL" Default="" Mode="" Description="Optional first admin email for automatic instance bootstrap. Leave blank to bootstrap manually in the UI." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Auto Bootstrap Admin Password" Target="AIO_BOOTSTRAP_PASSWORD" Default="" Mode="" Description="Optional first admin password for automatic instance bootstrap." Type="Variable" Display="advanced" Required="false" Mask="true"/>

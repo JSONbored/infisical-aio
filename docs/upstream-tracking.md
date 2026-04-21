@@ -18,6 +18,16 @@ This repo pins both:
 
 That makes drift explicit and lets the upstream monitor open controlled PRs for both version bumps and digest-only refreshes.
 
+## Config Surface Source Of Truth
+
+The CA template is generated from the pinned upstream `backend/src/lib/config/env.ts`, not from the newest docs page alone.
+
+That is intentional:
+
+- upstream docs can mention knobs that are newer than the pinned image or that come from the broader runtime rather than Infisical's validated env schema
+- this wrapper adds a small manual layer for Unraid-relevant extras the app/runtime supports directly, such as `NODE_EXTRA_CA_CERTS` and the optional Prometheus metrics port `9464`
+- if docs and runtime disagree, the pinned runtime wins until the upstream image is bumped and re-audited
+
 ## Current Pattern
 
 ```toml

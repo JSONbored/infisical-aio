@@ -45,6 +45,11 @@ This repo is deliberately not a stripped-down wrapper. Advanced View exposes the
 
 The wrapper still defaults to the internal bundled services so new Unraid users are not forced into extra containers on day one.
 
+Additional advanced wrapper-specific knobs worth knowing about:
+
+- `NODE_EXTRA_CA_CERTS` if your external Redis or other upstream dependency uses a private or self-signed CA; point it at a PEM file under `/config`, such as `/config/aio/certs/custom-ca.pem`
+- optional host port `9464` when you enable `OTEL_TELEMETRY_COLLECTION_ENABLED=true` with `OTEL_EXPORT_TYPE=prometheus`
+
 ## Runtime Notes
 
 - The bundled internal services are pinned to PostgreSQL 16 and Redis 7.x because those are within Infisical's currently documented support range.
@@ -71,7 +76,7 @@ Local validation in this repo is built around:
 - XML validation for the audited template surface
 - shell and Python syntax checks
 - local Docker build and smoke coverage
-- restart and persistence checks for the embedded Infisical stack
+- a repeatable runtime matrix for bundled mode, restart persistence, and external PostgreSQL/Redis overrides
 
 Run the source-repo-first checks before enabling automation:
 
@@ -81,7 +86,22 @@ python3 scripts/validate-template.py
 python3 scripts/generate_infisical_template.py --check
 docker build -t infisical-aio:test .
 bash scripts/smoke-test.sh infisical-aio:test
+bash scripts/validate-runtime-matrix.sh infisical-aio:test
 ```
+
+The runtime matrix asserts:
+
+- bundled PostgreSQL + Redis boot cleanly
+- `/config/aio/generated.env` persists unchanged across restart
+- external PostgreSQL keeps the bundled PostgreSQL service idle
+- external Redis keeps the bundled Redis service idle
+
+Still manual:
+
+- reverse proxy, TLS, and secure-cookie behavior for your real `SITE_URL`
+- SMTP delivery, custom CA mail flows, and SSO/provider-specific integrations
+- Prometheus scrape validation on published port `9464`
+- Unraid UI behavior in the CA template editor itself
 
 ## Community Apps Sync
 
