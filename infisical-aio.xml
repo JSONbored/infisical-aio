@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>infisical-aio</Name>
-  <Repository>ghcr.io/jsonbored/infisical-aio:latest</Repository>
-  <Registry>https://ghcr.io/jsonbored/infisical-aio</Registry>
+  <Repository>jsonbored/infisical-aio:latest</Repository>
+  <Registry>https://hub.docker.com/r/jsonbored/infisical-aio</Registry>
   <Network>bridge</Network>
   <MyIP/>
   <Shell>sh</Shell>
@@ -29,11 +29,9 @@
 - Infisical itself recommends external high-availability PostgreSQL and Redis for more serious production deployments.&#xD;
 - [code]SITE_URL[/code] matters. If you set it wrong, browser flows, links, email behavior, and some integrations will break in subtle ways.&#xD;
 - If you enable automatic bootstrap, you are creating a highly privileged instance-admin identity during first boot. Treat those credentials carefully.</Overview>
-  <Changes>[b]Current source repo state[/b]&#xD;
+  <Changes>### 2026-04-20&#xD;
 - Initial public release has not been cut yet.&#xD;
-- The source repo is validating the bundled PostgreSQL + Redis wrapper, first-run secret persistence, and the generated Infisical config surface.&#xD;
-&#xD;
-Full changelog and release notes: [url=https://github.com/JSONbored/infisical-aio/releases]GitHub Releases[/url]</Changes>
+- The source repo is validating the bundled PostgreSQL 16 + Redis 7 wrapper, first-run secret persistence, and the generated Infisical config surface.</Changes>
   <Category>Network:Security Tools:Utilities</Category>
   <WebUI>http://[IP]:[PORT:8080]</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/infisical-aio.xml</TemplateURL>

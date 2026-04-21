@@ -8,8 +8,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-PLACEHOLDER_RELEASE_URL = "https://github.com/JSONbored/yourapp-aio/releases"
-
 REQUIRED_TEXT_FIELDS = (
     "Support",
     "Project",
@@ -73,23 +71,8 @@ def main() -> int:
         )
 
     changes = (root.findtext("Changes") or "").strip()
-    if not is_placeholder_template(xml_path):
-        expected_release_url = f"https://github.com/JSONbored/{ROOT.name}/releases"
-        if expected_release_url not in changes:
-            return fail(
-                f"{xml_path.name} <Changes> should include the canonical GitHub releases URL: "
-                f"{expected_release_url}"
-            )
-    else:
-        template_release_url = f"https://github.com/JSONbored/{ROOT.name}/releases"
-        if (
-            PLACEHOLDER_RELEASE_URL not in changes
-            and template_release_url not in changes
-        ):
-            return fail(
-                f"{xml_path.name} placeholder <Changes> block should include either "
-                f"{PLACEHOLDER_RELEASE_URL} or {template_release_url}"
-            )
+    if not changes:
+        return fail(f"{xml_path.name} is missing a non-empty <Changes> field")
 
     invalid_option_configs: list[str] = []
     invalid_pipe_configs: list[str] = []

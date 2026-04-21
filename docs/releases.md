@@ -17,6 +17,8 @@ Every `main` build publishes:
 - the exact release package tag like `v0.159.16-aio.1`
 - `sha-<commit>`
 
+When Docker Hub credentials are configured, the same tag set is pushed to Docker Hub in parallel with GHCR.
+
 ## Release Flow
 
 1. Trigger **Release / Template** from `main` with `action=prepare`.

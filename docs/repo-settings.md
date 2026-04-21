@@ -37,8 +37,6 @@ Suggested required checks:
 
 Required variable:
 
-- `ENABLE_AIO_AUTOMATION=true`
-
 Required secret:
 
 - `SYNC_TOKEN`

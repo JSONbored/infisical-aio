@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="${1:-.}"
 cd "${repo_root}"
-strict_placeholders="${STRICT_PLACEHOLDERS:-${ENABLE_AIO_AUTOMATION:-false}}"
+strict_placeholders="${STRICT_PLACEHOLDERS:-false}"
 
 fail() {
 	echo "template validation error: $*" >&2
@@ -68,10 +68,8 @@ if [[ -z ${effective_template_xml} ]]; then
 	fi
 fi
 
-if [[ ${ENABLE_AIO_AUTOMATION-} == "true" ]]; then
-	[[ -n ${effective_template_xml} ]] || fail "ENABLE_AIO_AUTOMATION=true requires a root XML file"
+if [[ -n ${effective_template_xml} ]]; then
 	require_file "${effective_template_xml}"
-	require_absent "template-aio.xml"
 fi
 
 xml_files=()

@@ -1,20 +1,23 @@
 # infisical-aio
 
-`infisical-aio` packages [Infisical](https://github.com/Infisical/infisical) for an Unraid-first, single-container install path. The image wraps the official `infisical/infisical` container and bundles the required PostgreSQL and Redis services by default so a beginner install can stay small instead of turning into a separate stack immediately.
+An Unraid-first, single-container deployment of [Infisical](https://github.com/Infisical/infisical) for people who want the easiest reliable self-hosted install without manually wiring PostgreSQL and Redis on day one.
 
-This is still a real secrets-management platform, not a toy appliance. The AIO wrapper simplifies first boot, but it does not remove the need to think about backups, the correctness of `SITE_URL`, SMTP if you want mail-backed features, and whether you actually want an embedded database/cache long term.
+`infisical-aio` is opinionated for a predictable beginner install, but it does not hide the real tradeoffs: this is still a serious secrets-management platform, `SITE_URL` still needs to be correct, backups still matter, and the bundled database/cache path is convenience infrastructure rather than the ideal long-term production topology.
 
-## What This Repo Does
+## What This Image Includes
 
-- pins the official Infisical image by upstream tag and digest
-- bundles internal PostgreSQL and Redis for the default Unraid path
-- allows external PostgreSQL and Redis overrides from the CA template
-- auto-generates and persists required first-run secrets when you leave them blank
-- optionally bootstraps the first admin account and organization through the documented Infisical bootstrap API
-- exposes a wide CA template surface for power users while keeping the beginner path small
-- keeps the bundled beginner-path dependencies aligned with Infisical's tested support line by pinning internal PostgreSQL 16 and Redis 7.x
+- Infisical web UI and API on port `8080`
+- Embedded PostgreSQL 16 for the default beginner path
+- Embedded Redis 7 for the default beginner path
+- Persistent `/config` storage for generated wrapper state and bootstrap artifacts
+- Persistent `/data` storage for bundled PostgreSQL and Redis state
+- Automatic generation and persistence of `ENCRYPTION_KEY` and `AUTH_SECRET` when you leave them blank
+- Optional first-run bootstrap flow for the initial admin account and organization
+- Unraid CA template at [infisical-aio.xml](infisical-aio.xml)
 
 ## Beginner Install
+
+If you want the simplest supported path:
 
 1. Install the Unraid template.
 2. Leave the default `/config` and `/data` paths in place unless you have a reason to move them.
@@ -22,34 +25,53 @@ This is still a real secrets-management platform, not a toy appliance. The AIO w
 4. Start the container and wait for the API to come up.
 5. Create the first account in the UI, or set the optional `AIO_BOOTSTRAP_*` fields in Advanced View to auto-bootstrap it.
 
-By default, the wrapper will:
+If you leave the important secrets blank, the wrapper will:
 
-- generate and persist `ENCRYPTION_KEY` and `AUTH_SECRET`
+- generate and persist `ENCRYPTION_KEY`
+- generate and persist `AUTH_SECRET`
 - create and use an internal PostgreSQL database
 - create and use an internal Redis instance
 - disable product telemetry by default
 
-## Advanced Overrides
+## Power User Surface
 
-Advanced View is where the power-user surface lives:
+This repo is deliberately not a stripped-down wrapper. Advanced View exposes the broader practical Infisical self-hosted environment surface plus the AIO defaults for the bundled PostgreSQL + Redis path. In Advanced View you can:
 
-- external `DB_CONNECTION_URI` or separate DB fields
-- external Redis URL, Sentinel, or Cluster settings
-- SMTP and custom CA settings
-- SSO and integration client credentials
-- audit log storage, ClickHouse, telemetry, and DataDog toggles
-- secret scanning, gateway, PAM, HSM, and app connection settings
-- optional headless bootstrap fields for the first admin/org
+- point Infisical at external PostgreSQL with `DB_CONNECTION_URI` or the upstream DB fields
+- point Infisical at external Redis, Redis Sentinel, or Redis Cluster instead of the bundled instance
+- configure SMTP for invites, password resets, and mail-backed auth flows
+- expose the wider upstream SSO, audit log, telemetry, secret scanning, gateway, PAM, HSM, and app-connection settings
+- keep the bundled internal defaults for the easiest install while still retaining the normal escape hatches when you need them
 
-## Important Tradeoffs
+The wrapper still defaults to the internal bundled services so new Unraid users are not forced into extra containers on day one.
 
-- The default AIO path embeds PostgreSQL and Redis in one container for convenience, not because that is the ideal long-term production topology.
-- Infisical itself recommends external high-availability PostgreSQL and Redis for more serious production deployments.
+## Runtime Notes
+
 - The bundled internal services are pinned to PostgreSQL 16 and Redis 7.x because those are within Infisical's currently documented support range.
+- The default AIO path embeds PostgreSQL and Redis for convenience. For more serious production deployments, Infisical recommends external high-availability PostgreSQL and Redis.
 - `SITE_URL` matters. If you set it wrong, browser flows, links, email behavior, and some integrations will break in subtle ways.
 - If you enable automatic bootstrap, you are creating a highly privileged instance-admin identity during first boot. Treat those credentials carefully.
+- If you plan to expose this publicly, treat your reverse proxy, SMTP, app credentials, and backup strategy as part of the deployment rather than optional cleanup.
 
-## Local Validation
+## Publishing and Releases
+
+- Wrapper releases use the upstream version plus an AIO revision, such as `v0.159.16-aio.1`.
+- The repo monitors upstream releases through [upstream.toml](upstream.toml) and [scripts/check-upstream.py](scripts/check-upstream.py).
+- Release notes are generated with `git-cliff`.
+- The Unraid template `<Changes>` block is synced from `CHANGELOG.md` during release preparation.
+- `main` publishes `latest`, the pinned upstream version tag, the explicit AIO package tag, and `sha-<commit>` to GHCR.
+- When Docker Hub credentials are configured, the same publish flow pushes matching tags to Docker Hub in parallel.
+
+See [docs/releases.md](docs/releases.md) for the release workflow details.
+
+## Validation
+
+Local validation in this repo is built around:
+
+- XML validation for the audited template surface
+- shell and Python syntax checks
+- local Docker build and smoke coverage
+- restart and persistence checks for the embedded Infisical stack
 
 Run the source-repo-first checks before enabling automation:
 
@@ -69,6 +91,14 @@ This repo is the source repo. The CA-facing XML and icon should be synced into `
 2. the image is publishable
 3. the support thread content is ready
 
-## Upstream Tracking
+## Support
 
-`upstream.toml` tracks stable upstream releases from `Infisical/infisical` and the Docker Hub image digest for the wrapped container image.
+- Repo issues: [JSONbored/infisical-aio issues](https://github.com/JSONbored/infisical-aio/issues)
+- Upstream app: [Infisical/infisical](https://github.com/Infisical/infisical)
+- Official docs: [infisical.com/docs](https://infisical.com/docs)
+
+## Funding
+
+If this work saves you time, support it here:
+
+- [GitHub Sponsors](https://github.com/sponsors/JSONbored)

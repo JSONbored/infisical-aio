@@ -13,7 +13,6 @@
 
 ## Before Enabling Actions
 
-- set `ENABLE_AIO_AUTOMATION=true`
 - add `SYNC_TOKEN`
 - confirm Renovate is installed for the repo
 - verify branch protection and secret scanning are enabled
