@@ -60,7 +60,7 @@
 &#xD;
 ### New Contributors&#xD;
 - @JSONbored made their first contribution in [#3](https://github.com/JSONbored/infisical-aio/pull/3)</Changes>
-  <Category>Network:Security Tools:Utilities</Category>
+  <Category>Network:Security Security Tools:Utilities</Category>
   <WebUI>http://[IP]:[PORT:8080]</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/infisical-aio.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/icons/infisical.png</Icon>

@@ -315,7 +315,7 @@ def render_xml() -> str:
 - [code]SITE_URL[/code] matters. If you set it wrong, browser flows, links, email behavior, and some integrations will break in subtle ways.&#xD;
 - If you enable automatic bootstrap, you are creating a highly privileged instance-admin identity during first boot. Treat those credentials carefully.</Overview>
   <Changes>{changes}</Changes>
-  <Category>Network:Security Tools:Utilities</Category>
+  <Category>Network:Security Security Tools:Utilities</Category>
   <WebUI>http://[IP]:[PORT:8080]</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/infisical-aio.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/icons/infisical.png</Icon>
