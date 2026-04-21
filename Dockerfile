@@ -2,6 +2,12 @@
 # checkov:skip=CKV_DOCKER_3: s6-overlay requires root init so bundled services can prepare state before dropping privileges
 ARG UPSTREAM_VERSION=v0.159.16
 ARG UPSTREAM_IMAGE_DIGEST=sha256:5f896e2907661926cc92dcd88e5d7a383d5b91df4cb0127528d47235f96f4daa
+ARG MAILPIT_VERSION=v1.29.7
+ARG MAILPIT_IMAGE_DIGEST=sha256:757f22b56c1da03570afdb3d259effe5091018008a81bbedc8158cee7e16fdbc
+FROM infisical/infisical:${UPSTREAM_VERSION}@${UPSTREAM_IMAGE_DIGEST}
+
+FROM axllent/mailpit:${MAILPIT_VERSION}@${MAILPIT_IMAGE_DIGEST} AS mailpit
+
 FROM infisical/infisical:${UPSTREAM_VERSION}@${UPSTREAM_IMAGE_DIGEST}
 
 ARG S6_OVERLAY_VERSION=3.2.1.0
@@ -11,7 +17,7 @@ ARG TARGETARCH
 
 LABEL org.opencontainers.image.source="https://github.com/JSONbored/infisical-aio" \
       org.opencontainers.image.title="infisical-aio" \
-      org.opencontainers.image.description="Infisical packaged as a single-container Unraid AIO image with bundled PostgreSQL and Redis defaults"
+      org.opencontainers.image.description="Infisical packaged as a single-container Unraid AIO image with bundled PostgreSQL, Redis, and local Mailpit inbox defaults"
 
 # checkov:skip=CKV_DOCKER_8: s6-overlay entrypoint must start as root so init scripts can prepare data directories and then drop privileges per service
 # hadolint ignore=DL3002
@@ -49,12 +55,15 @@ RUN apt-get update && apt-get -y dist-upgrade && apt-get install -y --no-install
     esac && \
     curl -L -o /tmp/s6-overlay-arch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${s6_arch}.tar.xz" && \
     tar -C / -Jxpf /tmp/s6-overlay-arch.tar.xz && \
-    mkdir -p /config/aio /data/postgres /data/redis /run/postgresql && \
+    useradd --system --home-dir /var/lib/mailpit --create-home --shell /usr/sbin/nologin mailpit && \
+    mkdir -p /config/aio /config/aio/mailpit /data/postgres /data/redis /data/mailpit /run/postgresql && \
     chown -R postgres:postgres /data/postgres /run/postgresql && \
     chown -R redis:redis /data/redis && \
-    chmod 700 /data/postgres /data/redis && \
+    chown -R mailpit:mailpit /config/aio/mailpit /data/mailpit && \
+    chmod 700 /config/aio/mailpit /data/postgres /data/redis /data/mailpit && \
     rm -rf /tmp/* /var/lib/apt/lists/*
 
+COPY --from=mailpit /mailpit /usr/local/bin/mailpit
 COPY rootfs/ /
 
 RUN find /etc/cont-init.d -type f -exec chmod +x {} \; && \
@@ -62,7 +71,7 @@ RUN find /etc/cont-init.d -type f -exec chmod +x {} \; && \
     find /usr/local/bin -type f -exec chmod +x {} \;
 
 VOLUME ["/config", "/data"]
-EXPOSE 8080 9464
+EXPOSE 8080 8025 9464
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
   CMD curl -fsS http://127.0.0.1:8080/api/status >/dev/null || exit 1

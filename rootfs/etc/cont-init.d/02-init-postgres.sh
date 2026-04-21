@@ -7,8 +7,7 @@ source /usr/local/bin/env-helpers.sh
 
 load_generated_env
 
-DB_CONNECTION_URI_VALUE="${DB_CONNECTION_URI-}"
-if [[ -n ${DB_CONNECTION_URI_VALUE} ]] && ! uri_host_is_loopback "${DB_CONNECTION_URI_VALUE}"; then
+if postgres_is_external; then
 	echo "[infisical-aio] External PostgreSQL detected. Skipping internal cluster bootstrap."
 	exit 0
 fi

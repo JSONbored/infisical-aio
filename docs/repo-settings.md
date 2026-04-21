@@ -29,13 +29,12 @@ Suggested required checks:
 ## Security
 
 - enable dependency graph and GitHub vulnerability alerts
+- enable private vulnerability reporting and keep `SECURITY.md` aligned with the live reporting path
 - enable secret scanning
 - enable push protection
 - use Renovate for update PRs instead of Dependabot update PRs
 
 ## Secrets and Variables
-
-Required variable:
 
 Required secret:
 

@@ -5,33 +5,11 @@ set -euo pipefail
 source /usr/local/bin/env-helpers.sh
 
 load_generated_env
+configure_bundled_mailpit_env
 
-wait_for_postgres() {
-    local deadline=$((SECONDS + 300))
-    until pg_isready -d "${DB_CONNECTION_URI}" >/dev/null 2>&1; do
-        if (( SECONDS >= deadline )); then
-            echo "Timed out waiting for PostgreSQL." >&2
-            exit 1
-        fi
-        echo "Waiting for PostgreSQL to accept connections..."
-        sleep 2
-    done
-}
-
-wait_for_redis() {
-    local deadline=$((SECONDS + 300))
-    until redis-cli -u "${REDIS_URL}" ping >/dev/null 2>&1; do
-        if (( SECONDS >= deadline )); then
-            echo "Timed out waiting for Redis." >&2
-            exit 1
-        fi
-        echo "Waiting for Redis to accept connections..."
-        sleep 2
-    done
-}
-
-wait_for_postgres
-wait_for_redis
+wait_for_postgres_ready
+wait_for_redis_ready
+wait_for_mailpit_ready
 
 /usr/local/bin/bootstrap-infisical.sh &
 
