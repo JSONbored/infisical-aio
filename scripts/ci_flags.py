@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 
-
 TRUE_VALUES = {"1", "true", "yes", "on"}
 
 
@@ -39,7 +38,9 @@ def resolve_flags(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Resolve CI gate flags for build workflow.")
+    parser = argparse.ArgumentParser(
+        description="Resolve CI gate flags for build workflow."
+    )
     parser.add_argument("--event-name", required=True)
     parser.add_argument("--ref", required=True)
     parser.add_argument("--run-smoke-test-input", default="")

@@ -1,24 +1,28 @@
 # Releases
 
-`unraid-aio-template` uses normal semver releases such as `v0.1.0`.
+`infisical-aio` uses upstream-version-plus-AIO-revision releases such as `v0.159.16-aio.1`.
 
-This repository is not tied to a single wrapped upstream application, so it should not use the app-style `upstream-version-aio.N` format that the derived AIO repos use.
+## Version Format
 
-## What a template release means
+- first wrapper release for upstream `v0.159.16`: `v0.159.16-aio.1`
+- second wrapper-only release on the same upstream: `v0.159.16-aio.2`
+- first wrapper release after upgrading upstream again: `vX.Y.Z-aio.1`
 
-A template release is a versioned milestone for the scaffolding itself, including:
+## Published Image Tags
 
-- CI and workflow changes
-- release automation updates
-- documentation and support-thread templates
-- XML and catalog sync defaults
-- generic Docker and rootfs scaffolding improvements
+Every `main` build publishes:
 
-## Release flow
+- `latest`
+- the exact pinned upstream version
+- the exact release package tag like `v0.159.16-aio.1`
+- `sha-<commit>`
+
+When Docker Hub credentials are configured, the same tag set is pushed to Docker Hub in parallel with GHCR.
+
+## Release Flow
 
 1. Trigger **Release / Template** from `main` with `action=prepare`.
-2. The workflow computes the next semver version and opens a release PR that updates `CHANGELOG.md`.
-3. The same preparation flow also syncs the template XML `<Changes>` block from the latest `CHANGELOG.md` entry.
-4. Review and merge that PR into `main`.
-5. Trigger **Release / Template** from `main` again with `action=publish`.
-6. The workflow reads the merged `CHANGELOG.md` entry, creates the Git tag, and publishes the GitHub Release.
+2. The workflow computes the next `upstream-aio.N` version and opens a release PR.
+3. Review and merge that PR into `main`.
+4. Trigger **Release / Template** from `main` again with `action=publish`.
+5. The workflow reads the merged `CHANGELOG.md` entry, syncs the XML `<Changes>` block, creates the Git tag, and publishes the GitHub Release.

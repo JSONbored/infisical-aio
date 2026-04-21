@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     tags:
-      - "v*"
+      - v*
     paths:
       - Dockerfile
       - "*.xml"
@@ -25,20 +25,21 @@ on:
       - upstream.toml
       - renovate.json
       - .github/workflows/**
+  # checkov:skip=CKV_GHA_7: manual operators need bounded inputs to run smoke tests, publish images, and sync awesome-unraid on demand
   workflow_dispatch:
     inputs:
       run_smoke_test:
-        description: "Run the smoke-test job"
+        description: Run the smoke-test job
         required: false
         default: false
         type: boolean
       publish_images:
-        description: "Publish image tags from the current ref"
+        description: Publish image tags from the current ref
         required: false
         default: false
         type: boolean
       sync_awesome_unraid:
-        description: "Open or refresh the awesome-unraid sync pull request"
+        description: Open or refresh the awesome-unraid sync pull request
         required: false
         default: false
         type: boolean
@@ -46,7 +47,8 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ vars.IMAGE_NAME_OVERRIDE || github.repository }}
+  IMAGE_NAME: jsonbored/infisical-aio
+  PUBLISH_PLATFORMS: linux/amd64,linux/arm64
 
 permissions:
   contents: read
@@ -172,9 +174,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    env:
-      ENABLE_AIO_AUTOMATION: ${{ vars.ENABLE_AIO_AUTOMATION }}
-      TEMPLATE_XML: ${{ vars.TEMPLATE_XML }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -202,6 +201,7 @@ jobs:
         if: ${{ needs.detect-changes.outputs.build_related == 'true' || needs.detect-changes.outputs.template_assets_related == 'true' }}
         run: |
           python3 scripts/validate-template.py
+          python3 scripts/generate_infisical_template.py --check
 
       - name: Validate derived repo placeholders
         run: |
@@ -260,7 +260,7 @@ jobs:
         uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
 
   smoke-test:
-    if: ${{ needs.detect-changes.outputs.build_related == 'true' && vars.ENABLE_AIO_AUTOMATION == 'true' && needs.detect-changes.outputs.run_smoke_requested == 'true' }}
+    if: ${{ needs.detect-changes.outputs.build_related == 'true' && needs.detect-changes.outputs.run_smoke_requested == 'true' }}
     needs:
       - detect-changes
       - validate-template
@@ -281,7 +281,7 @@ jobs:
           context: .
           platforms: linux/amd64
           load: true
-          tags: aio-template:ci
+          tags: infisical-aio:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -289,7 +289,7 @@ jobs:
         run: |
           chmod +x scripts/smoke-test.sh
           export KEEP_SMOKE_ARTIFACTS=1
-          bash -x ./scripts/smoke-test.sh aio-template:ci
+          bash -x ./scripts/smoke-test.sh infisical-aio:ci
 
       - name: Dump smoke test diagnostics
         if: failure()
@@ -298,13 +298,13 @@ jobs:
           docker ps -a
           echo
           echo "Inspecting smoke container:"
-          docker inspect "${CONTAINER_NAME:-aio-template-smoke}" || true
+          docker inspect "${CONTAINER_NAME:-infisical-aio-smoke}" || true
           echo
           echo "Container logs:"
-          docker logs "${CONTAINER_NAME:-aio-template-smoke}" || true
+          docker logs "${CONTAINER_NAME:-infisical-aio-smoke}" || true
 
   publish:
-    if: ${{ needs.detect-changes.outputs.build_related == 'true' && vars.ENABLE_AIO_AUTOMATION == 'true' && github.event_name != 'pull_request' && needs.detect-changes.outputs.publish_requested == 'true' }}
+    if: ${{ needs.detect-changes.outputs.build_related == 'true' && github.event_name != 'pull_request' && needs.detect-changes.outputs.publish_requested == 'true' }}
     needs:
       - detect-changes
       - validate-template
@@ -331,29 +331,102 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Resolve Docker Hub publish settings
+        id: dockerhub
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERHUB_IMAGE_NAME: ${{ vars.DOCKERHUB_IMAGE_NAME }}
+          DOCKERHUB_IMAGE_NAME_SECRET: ${{ secrets.DOCKERHUB_IMAGE_NAME }}
+        run: |
+          if [[ -n "${DOCKERHUB_USERNAME}" && -n "${DOCKERHUB_TOKEN}" ]]; then
+            echo "enabled=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "enabled=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+          resolved_image_name="${DOCKERHUB_IMAGE_NAME:-${DOCKERHUB_IMAGE_NAME_SECRET}}"
+          if [[ -n "${resolved_image_name}" ]]; then
+            echo "image_name=${resolved_image_name}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "image_name=${IMAGE_NAME}" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Login to Docker Hub
+        if: ${{ steps.dockerhub.outputs.enabled == 'true' }}
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Compute image tags
         id: prep
+        env:
+          DOCKERHUB_ENABLED: ${{ steps.dockerhub.outputs.enabled }}
+          DOCKERHUB_IMAGE_NAME: ${{ steps.dockerhub.outputs.image_name }}
         run: |
-          image="$(printf '%s' "${REGISTRY}/${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')"
-          sha_tag="${image}:sha-${GITHUB_SHA}"
+          image_ghcr="$(printf '%s' "${REGISTRY}/${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')"
+          dockerhub_image_name="${DOCKERHUB_IMAGE_NAME:-${IMAGE_NAME}}"
+          image_dockerhub="$(printf '%s' "${dockerhub_image_name}" | tr '[:upper:]' '[:lower:]')"
+          sha_tag_ghcr="${image_ghcr}:sha-${GITHUB_SHA}"
+          raw_version="$(sed -n 's/^ARG UPSTREAM_VERSION=//p' Dockerfile | head -n1)"
+          upstream_version="${raw_version%%@*}"
+          changelog_version="$(python3 scripts/release.py latest-changelog-version 2>/dev/null || true)"
+          case "${changelog_version}" in
+            "${upstream_version}"-aio.*)
+              release_package_tag="${changelog_version}"
+              ;;
+            *)
+              release_package_tag="${upstream_version}-aio.1"
+              ;;
+          esac
 
           {
+            echo "upstream_version=${upstream_version}"
+            echo "release_package_tag=${release_package_tag}"
             echo "tags<<EOF"
             if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
               version="${GITHUB_REF#refs/tags/}"
               version_no_v="${version#v}"
               IFS='.' read -r major minor patch <<< "${version_no_v}"
-              echo "${image}:${version}"
+              echo "${image_ghcr}:${version}"
               if [[ -n "${major:-}" ]]; then
-                echo "${image}:v${major}"
+                echo "${image_ghcr}:v${major}"
               fi
               if [[ -n "${major:-}" && -n "${minor:-}" ]]; then
-                echo "${image}:v${major}.${minor}"
+                echo "${image_ghcr}:v${major}.${minor}"
               fi
             else
-              echo "${image}:latest"
+              echo "${image_ghcr}:latest"
             fi
-            echo "${sha_tag}"
+            if [[ -n "${upstream_version}" ]]; then
+              echo "${image_ghcr}:${upstream_version}"
+              echo "${image_ghcr}:${release_package_tag}"
+            fi
+            echo "${sha_tag_ghcr}"
+
+            if [[ "${DOCKERHUB_ENABLED}" == "true" ]]; then
+              if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+                version="${GITHUB_REF#refs/tags/}"
+                version_no_v="${version#v}"
+                IFS='.' read -r major minor patch <<< "${version_no_v}"
+                echo "${image_dockerhub}:${version}"
+                if [[ -n "${major:-}" ]]; then
+                  echo "${image_dockerhub}:v${major}"
+                fi
+                if [[ -n "${major:-}" && -n "${minor:-}" ]]; then
+                  echo "${image_dockerhub}:v${major}.${minor}"
+                fi
+              else
+                echo "${image_dockerhub}:latest"
+              fi
+              if [[ -n "${upstream_version}" ]]; then
+                echo "${image_dockerhub}:${upstream_version}"
+                echo "${image_dockerhub}:${release_package_tag}"
+              fi
+              echo "${image_dockerhub}:sha-${GITHUB_SHA}"
+            fi
             echo "EOF"
           } >> "${GITHUB_OUTPUT}"
 
@@ -361,14 +434,25 @@ jobs:
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ env.PUBLISH_PLATFORMS }}
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: ${{ steps.prep.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/JSONbored/infisical-aio
+            org.opencontainers.image.title=infisical-aio
+            org.opencontainers.image.version=${{ steps.prep.outputs.release_package_tag || '' }}
+            org.opencontainers.image.description=Unraid-first AIO wrapper image for Infisical with internal PostgreSQL and Redis defaults
+            io.jsonbored.upstream.name=Infisical
+            io.jsonbored.upstream.version=${{ steps.prep.outputs.upstream_version || '' }}
+            io.jsonbored.wrapper.name=infisical-aio
+            io.jsonbored.wrapper.type=unraid-aio
+            io.jsonbored.wrapper.track=${{ steps.prep.outputs.release_package_tag || '' }}
+            io.jsonbored.wrapper.version=${{ steps.prep.outputs.release_package_tag || '' }}
 
   sync-awesome-unraid:
-    if: ${{ needs.detect-changes.outputs.template_assets_related == 'true' && vars.ENABLE_AIO_AUTOMATION == 'true' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.sync_awesome_unraid == 'true')) }}
+    if: ${{ needs.detect-changes.outputs.template_assets_related == 'true' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.sync_awesome_unraid == 'true')) }}
     needs:
       - detect-changes
       - validate-template
@@ -376,64 +460,50 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    env:
-      TEMPLATE_XML: ${{ vars.TEMPLATE_XML || format('{0}.xml', github.event.repository.name) }}
-      TEMPLATE_ICON_PATH: ${{ vars.TEMPLATE_ICON_PATH || 'assets/app-icon.png' }}
-      TARGET_REPOSITORY: ${{ vars.AWESOME_UNRAID_REPOSITORY || 'JSONbored/awesome-unraid' }}
-      TARGET_XML_NAME: ${{ vars.AWESOME_UNRAID_XML_NAME || format('{0}.xml', github.event.repository.name) }}
-      TARGET_ICON_NAME: ${{ vars.AWESOME_UNRAID_ICON_NAME || '' }}
     steps:
-      - name: Verify sync configuration
-        id: token
+      - name: Check sync configuration
         env:
           SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
         run: |
-          if [[ -n "${SYNC_TOKEN}" && -n "${TEMPLATE_XML}" && -n "${TARGET_REPOSITORY}" && -n "${TARGET_XML_NAME}" ]]; then
-            echo "enabled=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "enabled=false" >> "${GITHUB_OUTPUT}"
+          if [[ -z "${SYNC_TOKEN}" ]]; then
+            echo "SYNC_ENABLED=false" >> "${GITHUB_ENV}"
             echo "Sync is not fully configured; skipping."
+          else
+            echo "SYNC_ENABLED=true" >> "${GITHUB_ENV}"
           fi
 
       - name: Checkout Source Repository
-        if: ${{ steps.token.outputs.enabled == 'true' }}
+        if: ${{ env.SYNC_ENABLED == 'true' }}
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Checkout Target Repository
-        if: ${{ steps.token.outputs.enabled == 'true' }}
+        if: ${{ env.SYNC_ENABLED == 'true' }}
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          repository: ${{ env.TARGET_REPOSITORY }}
+          repository: JSONbored/awesome-unraid
           token: ${{ secrets.SYNC_TOKEN }}
           path: target-repo
 
-      - name: Copy and Commit Template
-        if: ${{ steps.token.outputs.enabled == 'true' }}
+      - name: Copy template and icon
+        if: ${{ env.SYNC_ENABLED == 'true' }}
         run: |
-          if [[ -z "${TARGET_ICON_NAME}" && -f "${TEMPLATE_ICON_PATH}" ]]; then
-            stem="${TARGET_XML_NAME%.xml}"
-            stem="${stem%-aio}"
-            TARGET_ICON_NAME="${stem}.png"
-          fi
-          cp "${TEMPLATE_XML}" "target-repo/${TARGET_XML_NAME}"
+          cp infisical-aio.xml target-repo/infisical-aio.xml
           mkdir -p target-repo/icons
-          if [[ -n "${TARGET_ICON_NAME}" && -f "${TEMPLATE_ICON_PATH}" ]]; then
-            cp "${TEMPLATE_ICON_PATH}" "target-repo/icons/${TARGET_ICON_NAME}"
-          fi
+          cp assets/app-icon.png target-repo/icons/infisical.png
 
       - name: Create sync pull request
-        if: ${{ steps.token.outputs.enabled == 'true' }}
+        if: ${{ env.SYNC_ENABLED == 'true' }}
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ secrets.SYNC_TOKEN }}
           path: target-repo
           add-paths: |
-            ${{ env.TARGET_XML_NAME }}
-            icons/${{ env.TARGET_ICON_NAME }}
-          commit-message: "chore: auto-sync AIO template assets"
-          branch: "sync-awesome-unraid/${{ github.event.repository.name }}"
+            infisical-aio.xml
+            icons/infisical.png
+          commit-message: "docs(catalog): sync infisical-aio template assets"
+          branch: sync-awesome-unraid/infisical-aio
           delete-branch: true
           base: main
-          title: "chore: sync ${{ github.event.repository.name }} template assets"
+          title: "docs(catalog): sync infisical-aio template assets"
           body: |
-            Automated sync from `${{ github.repository }}`.
+            Automated sync from `JSONbored/infisical-aio`.

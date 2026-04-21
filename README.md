@@ -1,123 +1,104 @@
-# Unraid AIO Template
+# infisical-aio
 
-A hardened starter for future `*-aio` repositories: one public repo per app, one companion GHCR image, one Unraid CA XML, and one beginner-first experience that still leaves room for power-user overrides.
+An Unraid-first, single-container deployment of [Infisical](https://github.com/Infisical/infisical) for people who want the easiest reliable self-hosted install without manually wiring PostgreSQL and Redis on day one.
 
-This template is opinionated on purpose. It is built for repos that should be:
+`infisical-aio` is opinionated for a predictable beginner install, but it does not hide the real tradeoffs: this is still a serious secrets-management platform, `SITE_URL` still needs to be correct, backups still matter, and the bundled database/cache path is convenience infrastructure rather than the ideal long-term production topology.
 
-- easy for newcomers to install
-- honest about what is embedded versus external
-- reproducible in CI before publishing `latest`
-- cleanly syncable into `awesome-unraid`
+## What This Image Includes
 
-## What This Template Ships With
+- Infisical web UI and API on port `8080`
+- Embedded PostgreSQL 16 for the default beginner path
+- Embedded Redis 7 for the default beginner path
+- Persistent `/config` storage for generated wrapper state and bootstrap artifacts
+- Persistent `/data` storage for bundled PostgreSQL and Redis state
+- Automatic generation and persistence of `ENCRYPTION_KEY` and `AUTH_SECRET` when you leave them blank
+- Optional first-run bootstrap flow for the initial admin account and organization
+- Unraid CA template at [infisical-aio.xml](infisical-aio.xml)
 
-- starter [`Dockerfile`](/tmp/unraid-aio-template/Dockerfile) for wrapping an upstream image with `s6-overlay`
-- starter CA XML at [`template-aio.xml`](/tmp/unraid-aio-template/template-aio.xml)
-- reusable smoke test at [`scripts/smoke-test.sh`](/tmp/unraid-aio-template/scripts/smoke-test.sh)
-- generic XML validator at [`scripts/validate-template.py`](/tmp/unraid-aio-template/scripts/validate-template.py)
-- CI gate helper and tests at [`scripts/ci_flags.py`](/tmp/unraid-aio-template/scripts/ci_flags.py) and [`scripts/test-ci-flags.py`](/tmp/unraid-aio-template/scripts/test-ci-flags.py)
-- changelog-to-XML sync helper at [`scripts/update-template-changes.py`](/tmp/unraid-aio-template/scripts/update-template-changes.py)
-- derived-repo guardrail script at [`scripts/validate-derived-repo.sh`](/tmp/unraid-aio-template/scripts/validate-derived-repo.sh)
-- upstream monitor scaffold at [`upstream.toml`](/tmp/unraid-aio-template/upstream.toml)
-- GitHub Actions for validation, manual heavy-job gating, main-branch smoke-test/publish, security checks, and optional `awesome-unraid` sync
-- starter docs, changelog, funding, issue templates, and security policy
-- public repo checklists under [`docs/`](/tmp/unraid-aio-template/docs)
+## Beginner Install
 
-## Design Principles
+If you want the simplest supported path:
 
-- single-container first when it is realistic and not misleading
-- safe defaults for beginners, advanced knobs for power users
-- generated first-run secrets only when the app truly needs them
-- no publish until placeholders are gone and smoke tests pass
-- pinned workflow action SHAs and Renovate-managed dependency updates
-- stable-only upstream tracking with PR-first updates
-- optional upstream image digest tracking for repos that pin immutable manifests
-- update automation opens PRs, but merge decisions stay manual
-- public repos stay public-facing and product-facing only
+1. Install the Unraid template.
+2. Leave the default `/config` and `/data` paths in place unless you have a reason to move them.
+3. Set `SITE_URL` to the real URL users will visit, such as `https://secrets.example.com` or `http://tower.local:8080`.
+4. Start the container and wait for the API to come up.
+5. Create the first account in the UI, or set the optional `AIO_BOOTSTRAP_*` fields in Advanced View to auto-bootstrap it.
 
-## Recommended Workflow
+If you leave the important secrets blank, the wrapper will:
 
-1. Create a new private repo from this template.
-2. Rename `template-aio.xml` to the final app slug, for example `myapp-aio.xml`.
-3. Replace placeholders in the Dockerfile, XML, rootfs scripts, smoke test, README, funding file, and security policy.
-4. Replace [`assets/app-icon.png`](/tmp/unraid-aio-template/assets/app-icon.png) with the real icon.
-5. Follow [`docs/customization-guide.md`](/tmp/unraid-aio-template/docs/customization-guide.md).
-6. Follow [`docs/repo-settings.md`](/tmp/unraid-aio-template/docs/repo-settings.md).
-7. Keep `ENABLE_AIO_AUTOMATION` unset until the derived repo passes local validation.
-8. When ready, set `ENABLE_AIO_AUTOMATION=true` and let CI publish and sync.
-9. Install the Renovate GitHub App for the derived repo so pinned actions and Docker dependencies stay current.
-10. Configure [`upstream.toml`](/tmp/unraid-aio-template/upstream.toml) so the repo can monitor the wrapped upstream app.
-11. Replace the placeholder `<Changes>` block and then let release automation keep it in sync from `CHANGELOG.md`.
+- generate and persist `ENCRYPTION_KEY`
+- generate and persist `AUTH_SECRET`
+- create and use an internal PostgreSQL database
+- create and use an internal Redis instance
+- disable product telemetry by default
 
-## Required Actions Variables
+## Power User Surface
 
-Only one Actions variable is required for the default JSONbored workflow:
+This repo is deliberately not a stripped-down wrapper. Advanced View exposes the broader practical Infisical self-hosted environment surface plus the AIO defaults for the bundled PostgreSQL + Redis path. In Advanced View you can:
 
-- `ENABLE_AIO_AUTOMATION=true`
+- point Infisical at external PostgreSQL with `DB_CONNECTION_URI` or the upstream DB fields
+- point Infisical at external Redis, Redis Sentinel, or Redis Cluster instead of the bundled instance
+- configure SMTP for invites, password resets, and mail-backed auth flows
+- expose the wider upstream SSO, audit log, telemetry, secret scanning, gateway, PAM, HSM, and app-connection settings
+- keep the bundled internal defaults for the easiest install while still retaining the normal escape hatches when you need them
 
-Optional overrides:
+The wrapper still defaults to the internal bundled services so new Unraid users are not forced into extra containers on day one.
 
-- `IMAGE_NAME_OVERRIDE=jsonbored/yourapp-aio`
-- `TEMPLATE_XML=yourapp-aio.xml`
-- `AWESOME_UNRAID_REPOSITORY=JSONbored/awesome-unraid`
-- `AWESOME_UNRAID_XML_NAME=yourapp-aio.xml`
-- `AWESOME_UNRAID_ICON_NAME=yourapp.png`
-- `TEMPLATE_ICON_PATH=assets/app-icon.png`
+## Runtime Notes
 
-If you do not set the optional sync overrides, the workflow defaults to:
+- The bundled internal services are pinned to PostgreSQL 16 and Redis 7.x because those are within Infisical's currently documented support range.
+- The default AIO path embeds PostgreSQL and Redis for convenience. For more serious production deployments, Infisical recommends external high-availability PostgreSQL and Redis.
+- `SITE_URL` matters. If you set it wrong, browser flows, links, email behavior, and some integrations will break in subtle ways.
+- If you enable automatic bootstrap, you are creating a highly privileged instance-admin identity during first boot. Treat those credentials carefully.
+- If you plan to expose this publicly, treat your reverse proxy, SMTP, app credentials, and backup strategy as part of the deployment rather than optional cleanup.
 
-- target repo: `JSONbored/awesome-unraid`
-- XML name: `<repo-name>.xml`
-- icon path: `assets/app-icon.png`
-- icon name: derived from the XML name, for example `yourapp-aio.xml -> yourapp.png`
+## Publishing and Releases
 
-## Required Actions Secret
+- Wrapper releases use the upstream version plus an AIO revision, such as `v0.159.16-aio.1`.
+- The repo monitors upstream releases through [upstream.toml](upstream.toml) and [scripts/check-upstream.py](scripts/check-upstream.py).
+- Release notes are generated with `git-cliff`.
+- The Unraid template `<Changes>` block is synced from `CHANGELOG.md` during release preparation.
+- `main` publishes `latest`, the pinned upstream version tag, the explicit AIO package tag, and `sha-<commit>` to GHCR.
+- When Docker Hub credentials are configured, the same publish flow pushes matching tags to Docker Hub in parallel.
 
-- `SYNC_TOKEN`
-  - fine-grained PAT
-  - repository access: `JSONbored/awesome-unraid`
-  - permission: `Contents: Read and write`
+See [docs/releases.md](docs/releases.md) for the release workflow details.
 
-## Files To Customize First
+## Validation
 
-- [`Dockerfile`](/tmp/unraid-aio-template/Dockerfile)
-- [`template-aio.xml`](/tmp/unraid-aio-template/template-aio.xml)
-- [`scripts/smoke-test.sh`](/tmp/unraid-aio-template/scripts/smoke-test.sh)
-- [`scripts/validate-template.py`](/tmp/unraid-aio-template/scripts/validate-template.py)
-- [`scripts/update-template-changes.py`](/tmp/unraid-aio-template/scripts/update-template-changes.py)
-- [`rootfs/etc/cont-init.d/01-bootstrap.sh`](/tmp/unraid-aio-template/rootfs/etc/cont-init.d/01-bootstrap.sh)
-- [`rootfs/etc/services.d/app/run`](/tmp/unraid-aio-template/rootfs/etc/services.d/app/run)
-- [`README.md`](/tmp/unraid-aio-template/README.md)
-- [`.github/FUNDING.yml`](/tmp/unraid-aio-template/.github/FUNDING.yml)
-- [`SECURITY.md`](/tmp/unraid-aio-template/SECURITY.md)
-- [`upstream.toml`](/tmp/unraid-aio-template/upstream.toml)
+Local validation in this repo is built around:
 
-## Validation Flow
+- XML validation for the audited template surface
+- shell and Python syntax checks
+- local Docker build and smoke coverage
+- restart and persistence checks for the embedded Infisical stack
 
-Derived repos created from this template should follow this order:
+Run the source-repo-first checks before enabling automation:
 
-1. local placeholder cleanup
-2. `STRICT_PLACEHOLDERS=true bash scripts/validate-derived-repo.sh .`
-3. `python3 scripts/validate-template.py`
-4. local image build
-5. local smoke test
-6. enable automation
-7. CI validation and publish
-8. `awesome-unraid` sync using the repo-name-derived defaults or your optional overrides
-9. real Unraid install validation
+```bash
+STRICT_PLACEHOLDERS=true bash scripts/validate-derived-repo.sh .
+python3 scripts/validate-template.py
+python3 scripts/generate_infisical_template.py --check
+docker build -t infisical-aio:test .
+bash scripts/smoke-test.sh infisical-aio:test
+```
 
-Use [`docs/release-checklist.md`](/tmp/unraid-aio-template/docs/release-checklist.md) before making a derived repo public or submitting it to CA.
+## Community Apps Sync
 
-## Upstream Tracking
+This repo is the source repo. The CA-facing XML and icon should be synced into `JSONbored/awesome-unraid` only after:
 
-Use [`docs/upstream-tracking.md`](/tmp/unraid-aio-template/docs/upstream-tracking.md) to wire the derived repo to the stable upstream app it wraps.
+1. local validation passes
+2. the image is publishable
+3. the support thread content is ready
 
-## Releases
+## Support
 
-This template should use normal semver releases such as `v0.1.0`, not upstream-aligned app versions.
+- Repo issues: [JSONbored/infisical-aio issues](https://github.com/JSONbored/infisical-aio/issues)
+- Upstream app: [Infisical/infisical](https://github.com/Infisical/infisical)
+- Official docs: [infisical.com/docs](https://infisical.com/docs)
 
-See [`docs/releases.md`](/tmp/unraid-aio-template/docs/releases.md) for the protected-branch-safe release workflow and changelog process.
+## Funding
 
-## Star History
+If this work saves you time, support it here:
 
-[![Star History Chart](https://api.star-history.com/svg?repos=JSONbored/unraid-aio-template&type=date&legend=top-left)](https://www.star-history.com/#JSONbored/unraid-aio-template&Date)
+- [GitHub Sponsors](https://github.com/sponsors/JSONbored)

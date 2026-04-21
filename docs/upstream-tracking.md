@@ -1,43 +1,24 @@
 # Upstream Tracking
 
-Every derived AIO repo should declare the upstream app it wraps and how updates should be handled.
+`infisical-aio` tracks the stable upstream `Infisical/infisical` release line and the Docker Hub image digest for `infisical/infisical`.
 
-## Why This Exists
+The bundled beginner-path dependencies are pinned separately:
 
-Without upstream monitoring, each AIO repo becomes a manual memory problem. The goal is simple:
+- internal PostgreSQL stays on major `16`
+- internal Redis stays on major `7`
 
-- detect new stable upstream versions
-- open a controlled PR or issue
-- let the normal repo CI validate the update before it ships
+Those majors are intentional because current Infisical requirements documentation says PostgreSQL has been extensively tested with version 16 and Redis should stay on 6.x or 7.x.
 
-## Files
+## Why
 
-- [`upstream.toml`](/tmp/unraid-aio-template/upstream.toml)
-- [`scripts/check-upstream.py`](/tmp/unraid-aio-template/scripts/check-upstream.py)
-- [`.github/workflows/check-upstream.yml`](/tmp/unraid-aio-template/.github/workflows/check-upstream.yml)
+This repo pins both:
 
-## Recommended Default
+- a human-readable upstream version
+- the exact immutable image digest
 
-Use stable-only monitoring with `strategy = "pr"`.
+That makes drift explicit and lets the upstream monitor open controlled PRs for both version bumps and digest-only refreshes.
 
-That means the repo:
-
-- checks upstream on a schedule
-- opens a PR when a new stable version appears
-- runs the normal validation and smoke-test flow
-- leaves the final merge decision to you
-
-## Supported Upstream Types
-
-- `github-tag`
-- `github-release`
-- `ghcr-container-tag`
-
-## Optional Digest Pinning
-
-When the wrapped upstream publishes immutable image manifests, you can track both the human version and the exact image digest. This is the right fit for repos that pin `FROM upstream-image:<tag>@sha256:<digest>` and want upstream-monitor PRs to catch digest-only refreshes too.
-
-Example:
+## Current Pattern
 
 ```toml
 [upstream]
@@ -51,42 +32,14 @@ digest_source = "dockerhub-manifest"
 digest_key = "UPSTREAM_IMAGE_DIGEST"
 strategy = "pr"
 stable_only = true
-
-[notifications]
-release_notes_url = "https://github.com/Infisical/infisical/releases"
 ```
 
-## Example
-
-```toml
-[upstream]
-name = "Sure"
-type = "github-tag"
-repo = "we-promise/sure"
-version_source = "dockerfile-arg"
-version_key = "UPSTREAM_VERSION"
-strategy = "pr"
-stable_only = true
-
-[notifications]
-release_notes_url = "https://github.com/we-promise/sure/releases"
-```
-
-## Version Pinning Pattern
-
-Pin the wrapped upstream version explicitly in the Dockerfile:
+## Dockerfile Pinning
 
 ```dockerfile
-ARG UPSTREAM_VERSION=v0.6.8
-FROM ghcr.io/we-promise/sure:${UPSTREAM_VERSION}
+ARG UPSTREAM_VERSION=v0.159.16
+ARG UPSTREAM_IMAGE_DIGEST=sha256:...
+FROM infisical/infisical:${UPSTREAM_VERSION}@${UPSTREAM_IMAGE_DIGEST}
 ```
 
-This gives the upstream monitor a concrete value to compare and update.
-
-## Stable First
-
-The default template policy is stable only. Do not expose prerelease channels until the derived repo has:
-
-- strong smoke tests
-- confidence in upgrade safety
-- a clear reason to offer beta or RC tags publicly
+That is the intended pattern for this repo.
