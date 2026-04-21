@@ -13,6 +13,7 @@ from urllib.request import urlopen
 ROOT = Path(__file__).resolve().parents[1]
 DOCKERFILE = ROOT / "Dockerfile"
 OUTPUT = ROOT / "infisical-aio.xml"
+CHANGELOG = ROOT / "CHANGELOG.md"
 
 
 def docker_arg(name: str) -> str:
@@ -176,6 +177,99 @@ def render_config(key: str) -> str:
     )
 
 
+def fallback_changes() -> str:
+    body = (
+        "### 2026-04-20\n"
+        "- Initial public release has not been cut yet.\n"
+        "- The source repo is validating the bundled PostgreSQL 16 + Redis 7 wrapper, "
+        "local Mailpit inbox integration, first-run secret persistence, and the generated "
+        "Infisical config surface."
+    )
+    return html.escape(body, quote=False).replace("\n", "&#xD;\n")
+
+
+def latest_changelog_version(changelog: Path) -> str | None:
+    pattern = re.compile(r"^##\s+(?:\[([^\]]+)\]\([^)]+\)|([^\s]+))")
+    for line in changelog.read_text().splitlines():
+        match = pattern.match(line.strip())
+        if not match:
+            continue
+        version = match.group(1) or match.group(2)
+        if version != "Unreleased":
+            return version
+    return None
+
+
+def extract_release_notes(version: str, changelog: Path) -> str:
+    heading = re.compile(
+        rf"^##\s+(?:\[{re.escape(version)}\]\([^)]+\)|{re.escape(version)})(?:\s+-\s+.+)?$"
+    )
+    next_heading = re.compile(r"^##\s+")
+    lines = changelog.read_text().splitlines()
+    start = None
+    for idx, line in enumerate(lines):
+        if heading.match(line.strip()):
+            start = idx + 1
+            break
+    if start is None:
+        raise ValueError(f"Unable to find release section for {version} in {changelog}")
+    end = len(lines)
+    for idx in range(start, len(lines)):
+        if next_heading.match(lines[idx].strip()):
+            end = idx
+            break
+    notes = "\n".join(lines[start:end]).strip()
+    if not notes:
+        raise ValueError(f"Release section for {version} in {changelog} is empty")
+    return notes
+
+
+def release_heading(version: str, changelog: Path) -> str:
+    heading = re.compile(
+        rf"^##\s+(?:\[{re.escape(version)}\]\([^)]+\)|{re.escape(version)})(?:\s+-\s+(.+))?$"
+    )
+    for line in changelog.read_text().splitlines():
+        match = heading.match(line.strip())
+        if match:
+            release_date = (match.group(1) or "").strip()
+            if release_date:
+                return f"### {release_date}"
+            break
+    return f"### {version}"
+
+
+def render_changes() -> str:
+    if not CHANGELOG.exists():
+        return fallback_changes()
+    version = latest_changelog_version(CHANGELOG)
+    if not version:
+        return fallback_changes()
+    try:
+        notes = extract_release_notes(version, CHANGELOG)
+    except ValueError:
+        return fallback_changes()
+
+    lines: list[str] = [release_heading(version, CHANGELOG)]
+    for line in notes.splitlines():
+        stripped = line.rstrip()
+        if not stripped:
+            lines.append("")
+            continue
+        if stripped.startswith("<!--") and stripped.endswith("-->"):
+            continue
+        if re.match(r"^\[[^\]]+\]:\s+https?://", stripped):
+            continue
+        if stripped.startswith("Full Changelog:"):
+            continue
+        if stripped.startswith("## "):
+            continue
+        if stripped.startswith("### "):
+            lines.append(stripped)
+            continue
+        lines.append(stripped)
+    return html.escape("\n".join(lines).strip(), quote=False).replace("\n", "&#xD;\n")
+
+
 def render_xml() -> str:
     version = docker_arg("UPSTREAM_VERSION")
     env_source = fetch_env_source(version)
@@ -185,6 +279,7 @@ def render_xml() -> str:
         if key not in SKIP_KEYS and key not in MANUAL_KEYS
     ]
     configs = "\n".join(render_config(key) for key in keys)
+    changes = render_changes()
     return f"""<?xml version="1.0"?>
 <Container version="2">
   <Name>infisical-aio</Name>
@@ -219,9 +314,7 @@ def render_xml() -> str:
 - The bundled Mailpit inbox is for local or lab use. It is not a production mail relay and should not be confused with real deliverability infrastructure.&#xD;
 - [code]SITE_URL[/code] matters. If you set it wrong, browser flows, links, email behavior, and some integrations will break in subtle ways.&#xD;
 - If you enable automatic bootstrap, you are creating a highly privileged instance-admin identity during first boot. Treat those credentials carefully.</Overview>
-  <Changes>### 2026-04-20&#xD;
-- Initial public release has not been cut yet.&#xD;
-- The source repo is validating the bundled PostgreSQL 16 + Redis 7 wrapper, local Mailpit inbox integration, first-run secret persistence, and the generated Infisical config surface.</Changes>
+  <Changes>{changes}</Changes>
   <Category>Network:Security Tools:Utilities</Category>
   <WebUI>http://[IP]:[PORT:8080]</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/infisical-aio.xml</TemplateURL>
@@ -323,7 +416,7 @@ def main() -> int:
         existing = output_path.read_text() if output_path.exists() else ""
         if existing != rendered:
             print(
-                f"{output_path} is out of date with the current upstream env schema. "
+                f"{output_path} is out of date with the generated template. "
                 "Run scripts/generate_infisical_template.py to refresh it.",
                 file=sys.stderr,
             )
