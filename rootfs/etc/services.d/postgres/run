@@ -6,7 +6,7 @@ source /usr/local/bin/env-helpers.sh
 
 load_generated_env
 
-if [ -n "${DB_CONNECTION_URI:-}" ] && ! uri_host_is_loopback "${DB_CONNECTION_URI}"; then
+if postgres_is_external; then
     echo "[infisical-aio] External PostgreSQL configured. Bundled PostgreSQL service staying idle."
     exec sleep infinity
 fi

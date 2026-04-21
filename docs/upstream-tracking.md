@@ -6,6 +6,7 @@ The bundled beginner-path dependencies are pinned separately:
 
 - internal PostgreSQL stays on major `16`
 - internal Redis stays on major `7`
+- bundled Mailpit is pinned to an explicit upstream release and digest rather than floating `latest`
 
 Those majors are intentional because current Infisical requirements documentation says PostgreSQL has been extensively tested with version 16 and Redis should stay on 6.x or 7.x.
 
@@ -17,6 +18,16 @@ This repo pins both:
 - the exact immutable image digest
 
 That makes drift explicit and lets the upstream monitor open controlled PRs for both version bumps and digest-only refreshes.
+
+## Config Surface Source Of Truth
+
+The CA template is generated from the pinned upstream `backend/src/lib/config/env.ts`, not from the newest docs page alone.
+
+That is intentional:
+
+- upstream docs can mention knobs that are newer than the pinned image or that come from the broader runtime rather than Infisical's validated env schema
+- this wrapper adds a small manual layer for Unraid-relevant extras the app/runtime supports directly, such as `NODE_EXTRA_CA_CERTS`, the optional Prometheus metrics port `9464`, and the bundled local Mailpit inbox controls
+- if docs and runtime disagree, the pinned runtime wins until the upstream image is bumped and re-audited
 
 ## Current Pattern
 
@@ -40,6 +51,10 @@ stable_only = true
 ARG UPSTREAM_VERSION=v0.159.16
 ARG UPSTREAM_IMAGE_DIGEST=sha256:...
 FROM infisical/infisical:${UPSTREAM_VERSION}@${UPSTREAM_IMAGE_DIGEST}
+
+ARG MAILPIT_VERSION=v1.29.7
+ARG MAILPIT_IMAGE_DIGEST=sha256:...
+FROM axllent/mailpit:${MAILPIT_VERSION}@${MAILPIT_IMAGE_DIGEST} AS mailpit
 ```
 
 That is the intended pattern for this repo.

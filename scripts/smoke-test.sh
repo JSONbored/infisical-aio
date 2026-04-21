@@ -6,6 +6,7 @@ CONTAINER_NAME="${CONTAINER_NAME:-infisical-aio-smoke}"
 HOST_PORT="${HOST_PORT:-18080}"
 CONTAINER_PORT="${CONTAINER_PORT:-8080}"
 READY_LOG="${READY_LOG:-[infisical-aio] Infisical API is ready}"
+SMTP_READY_LOG="${SMTP_READY_LOG:-SMTP - Verified connection to 127.0.0.1:1025}"
 HEALTHCHECK_URL="${HEALTHCHECK_URL:-http://127.0.0.1:${HOST_PORT}/api/status}"
 READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-300}"
 HTTP_TIMEOUT_SECONDS="${HTTP_TIMEOUT_SECONDS:-60}"
@@ -40,6 +41,20 @@ done
 if [[ -n ${READY_LOG} ]]; then
 	CURRENT_LOGS="$(docker logs "${CONTAINER_NAME}" 2>&1 || true)"
 	[[ ${CURRENT_LOGS} == *"${READY_LOG}"* ]]
+fi
+
+if [[ -n ${SMTP_READY_LOG} ]]; then
+	smtp_deadline=$((SECONDS + HTTP_TIMEOUT_SECONDS))
+	while ((SECONDS < smtp_deadline)); do
+		CURRENT_LOGS="$(docker logs "${CONTAINER_NAME}" 2>&1 || true)"
+		if [[ ${CURRENT_LOGS} == *"${SMTP_READY_LOG}"* ]]; then
+			break
+		fi
+		sleep 2
+	done
+
+	CURRENT_LOGS="$(docker logs "${CONTAINER_NAME}" 2>&1 || true)"
+	[[ ${CURRENT_LOGS} == *"${SMTP_READY_LOG}"* ]]
 fi
 
 http_deadline=$((SECONDS + HTTP_TIMEOUT_SECONDS))
