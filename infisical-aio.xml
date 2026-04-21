@@ -32,9 +32,34 @@
 - The bundled Mailpit inbox is for local or lab use. It is not a production mail relay and should not be confused with real deliverability infrastructure.&#xD;
 - [code]SITE_URL[/code] matters. If you set it wrong, browser flows, links, email behavior, and some integrations will break in subtle ways.&#xD;
 - If you enable automatic bootstrap, you are creating a highly privileged instance-admin identity during first boot. Treat those credentials carefully.</Overview>
-  <Changes>### 2026-04-20&#xD;
-- Initial public release has not been cut yet.&#xD;
-- The source repo is validating the bundled PostgreSQL 16 + Redis 7 wrapper, local Mailpit inbox integration, first-run secret persistence, and the generated Infisical config surface.</Changes>
+  <Changes>### 2026-04-21&#xD;
+### Documentation&#xD;
+- Add banner star history and security metadata by @JSONbored&#xD;
+&#xD;
+&#xD;
+### Features&#xD;
+- Expose metrics port and CA cert knob by @JSONbored&#xD;
+&#xD;
+&#xD;
+### Fixes&#xD;
+- Pin bundled database and redis support line by @JSONbored&#xD;
+- Harden infisical aio runtime and tooling by @JSONbored&#xD;
+- Tighten redis package version selection by @JSONbored&#xD;
+- Correct qemu action pin by @JSONbored&#xD;
+&#xD;
+&#xD;
+### Other Changes&#xD;
+- Initial commit by @JSONbored&#xD;
+- Harden Infisical AIO template and container packaging by @JSONbored&#xD;
+- Use `Reinforce Infisical AIO runtime and template checks` by @JSONbored&#xD;
+- Improve build pipeline and README by @JSONbored&#xD;
+- Merge branch 'main' into codex/initial-scaffold by @JSONbored&#xD;
+- Merge branch 'main' into codex/audit-env-surface-and-validation by @JSONbored&#xD;
+&#xD;
+&#xD;
+&#xD;
+### New Contributors&#xD;
+- @JSONbored made their first contribution in [#3](https://github.com/JSONbored/infisical-aio/pull/3)</Changes>
   <Category>Network:Security Tools:Utilities</Category>
   <WebUI>http://[IP]:[PORT:8080]</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/infisical-aio.xml</TemplateURL>
