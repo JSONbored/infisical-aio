@@ -88,7 +88,7 @@ python3 -m venv .venv-local
 .venv-local/bin/pip install -r requirements-dev.txt
 .venv-local/bin/pytest tests/unit tests/template --junit-xml=reports/pytest-unit.xml -o junit_family=xunit1
 .venv-local/bin/pytest tests/integration -m integration --junit-xml=reports/pytest-integration.xml -o junit_family=xunit1
-trunk flakytests validate --junit-paths "reports/pytest-unit.xml,reports/pytest-integration.xml"
+./trunk-analytics-cli validate --junit-paths "reports/pytest-unit.xml,reports/pytest-integration.xml"
 trunk check --show-existing --all
 ```
 
@@ -98,6 +98,13 @@ The extended runtime matrix now lives behind an opt-in pytest marker so the deep
 INFISICAL_ENABLE_RUNTIME_MATRIX=1 \
 .venv-local/bin/pytest tests/integration/test_runtime_matrix.py -m extended_integration
 ```
+
+CI cost model:
+
+- relevant PRs and `main` pushes run the fast validation layers first
+- Docker-backed integration tests run for build-relevant changes, for `main` release-metadata commits when publish is still in play, and for manual dispatches
+- image publish stays gated behind the integration suite instead of treating skipped integration as acceptable
+- the extended runtime matrix stays opt-in because it is materially more expensive than the required gate
 
 That manual proof helper covers:
 

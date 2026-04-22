@@ -3,10 +3,10 @@ name: Build AIO Image
 on:
   push:
     branches: [main]
-    tags:
-      - v*
     paths:
+      - CHANGELOG.md
       - Dockerfile
+      - cliff.toml
       - pyproject.toml
       - requirements-dev.txt
       - "*.xml"
@@ -21,7 +21,9 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - CHANGELOG.md
       - Dockerfile
+      - cliff.toml
       - pyproject.toml
       - requirements-dev.txt
       - "*.xml"
@@ -40,6 +42,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: jsonbored/infisical-aio
   PUBLISH_PLATFORMS: linux/amd64,linux/arm64
+  PYTHON_VERSION: "3.13"
   TRUNK_ORG_URL_SLUG: aethereal
 
 permissions:
@@ -59,6 +62,7 @@ jobs:
       template_assets_related: ${{ steps.filter.outputs.template_assets_related }}
       renovate_related: ${{ steps.filter.outputs.renovate_related }}
       tooling_related: ${{ steps.filter.outputs.tooling_related }}
+      workflow_related: ${{ steps.filter.outputs.workflow_related }}
       run_tests_requested: ${{ steps.filter.outputs.run_tests_requested }}
       publish_requested: ${{ steps.filter.outputs.publish_requested }}
     steps:
@@ -86,6 +90,7 @@ jobs:
             echo "template_assets_related=true" >> "${GITHUB_OUTPUT}"
             echo "renovate_related=true" >> "${GITHUB_OUTPUT}"
             echo "tooling_related=true" >> "${GITHUB_OUTPUT}"
+            echo "workflow_related=true" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
@@ -103,6 +108,7 @@ jobs:
             echo "template_assets_related=true" >> "${GITHUB_OUTPUT}"
             echo "renovate_related=true" >> "${GITHUB_OUTPUT}"
             echo "tooling_related=true" >> "${GITHUB_OUTPUT}"
+            echo "workflow_related=true" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
@@ -113,6 +119,7 @@ jobs:
               echo "template_assets_related=true" >> "${GITHUB_OUTPUT}"
               echo "renovate_related=true" >> "${GITHUB_OUTPUT}"
               echo "tooling_related=true" >> "${GITHUB_OUTPUT}"
+              echo "workflow_related=true" >> "${GITHUB_OUTPUT}"
               exit 0
             fi
           else
@@ -132,6 +139,7 @@ jobs:
           template_assets_related=false
           renovate_related=false
           tooling_related=false
+          workflow_related=false
 
           while IFS= read -r path; do
             [[ -z "${path}" ]] && continue
@@ -142,8 +150,12 @@ jobs:
               *.xml|assets/*)
                 template_assets_related=true
                 ;;
-              scripts/*|.github/workflows/*|.trunk/*)
+              CHANGELOG.md|cliff.toml|scripts/*|.trunk/*)
                 tooling_related=true
+                ;;
+              .github/workflows/*)
+                tooling_related=true
+                workflow_related=true
                 ;;
               renovate.json)
                 renovate_related=true
@@ -155,6 +167,7 @@ jobs:
           echo "template_assets_related=${template_assets_related}" >> "${GITHUB_OUTPUT}"
           echo "renovate_related=${renovate_related}" >> "${GITHUB_OUTPUT}"
           echo "tooling_related=${tooling_related}" >> "${GITHUB_OUTPUT}"
+          echo "workflow_related=${workflow_related}" >> "${GITHUB_OUTPUT}"
 
   validate-template:
     needs: detect-changes
@@ -178,30 +191,26 @@ jobs:
           find rootfs -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
           find rootfs -type f -path '*/run' -print0 | xargs -0 -n1 bash -n
 
-      - name: Run targeted pytest validation suite
-        if: ${{ needs.detect-changes.outputs.build_related == 'true' || needs.detect-changes.outputs.template_assets_related == 'true' || needs.detect-changes.outputs.tooling_related == 'true' }}
-        run: |
-          python3 -m venv .venv-ci
-          .venv-ci/bin/pip install -r requirements-dev.txt
-          .venv-ci/bin/pytest \
-            tests/unit/test_ci_flags.py \
-            tests/template/test_generate_infisical_template.py \
-            tests/template/test_validate_template.py \
-            tests/template/test_validate_derived_repo.py
-
       - name: Validate Renovate config
         if: ${{ needs.detect-changes.outputs.renovate_related == 'true' }}
         run: npx --yes --package renovate renovate-config-validator renovate.json
 
   pinned-actions:
+    needs: detect-changes
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
+      - name: Skip when workflow files are unchanged
+        if: ${{ needs.detect-changes.outputs.workflow_related != 'true' }}
+        run: echo "Workflow files unchanged; skipping pinned action scan."
+
       - name: Checkout
+        if: ${{ needs.detect-changes.outputs.workflow_related == 'true' }}
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Enforce pinned action SHAs
+        if: ${{ needs.detect-changes.outputs.workflow_related == 'true' }}
         run: |
           python3 - <<'PY'
           import pathlib
@@ -254,11 +263,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
 
       - name: Install pytest
-        run: |
-          python3 -m venv .venv-ci
-          .venv-ci/bin/pip install -r requirements-dev.txt
+        run: python -m pip install -r requirements-dev.txt
 
       - name: Run pytest unit tests
         id: unit_pytest
@@ -266,7 +279,7 @@ jobs:
           mkdir -p reports
           rm -f reports/pytest-unit.xml
           set +e
-          .venv-ci/bin/pytest \
+          python -m pytest \
             tests/unit \
             tests/template \
             --junit-xml=reports/pytest-unit.xml \
@@ -291,7 +304,7 @@ jobs:
         run: exit 1
 
   integration-tests:
-    if: ${{ needs.detect-changes.outputs.build_related == 'true' && needs.detect-changes.outputs.run_tests_requested == 'true' }}
+    if: ${{ needs.detect-changes.outputs.run_tests_requested == 'true' && (needs.detect-changes.outputs.build_related == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect-changes.outputs.publish_requested == 'true')) }}
     needs:
       - detect-changes
       - validate-template
@@ -305,19 +318,36 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+      - name: Prebuild pytest image
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: infisical-aio:pytest
+          cache-from: type=gha,scope=infisical-aio-pytest
+          cache-to: type=gha,mode=max,scope=infisical-aio-pytest
 
       - name: Install pytest
-        run: |
-          python3 -m venv .venv-ci
-          .venv-ci/bin/pip install -r requirements-dev.txt
+        run: python -m pip install -r requirements-dev.txt
 
       - name: Run pytest integration tests
         id: integration_pytest
+        env:
+          AIO_PYTEST_USE_PREBUILT_IMAGE: "true"
         run: |
           mkdir -p reports
           rm -f reports/pytest-integration.xml
           set +e
-          .venv-ci/bin/pytest \
+          python -m pytest \
             tests/integration \
             -m integration \
             --junit-xml=reports/pytest-integration.xml \
@@ -349,7 +379,7 @@ jobs:
         run: exit 1
 
   publish:
-    if: ${{ needs.detect-changes.outputs.build_related == 'true' && vars.ENABLE_AIO_AUTOMATION == 'true' && github.event_name == 'push' && needs.detect-changes.outputs.publish_requested == 'true' && (needs.integration-tests.result == 'success' || needs.integration-tests.result == 'skipped') }}
+    if: ${{ needs.detect-changes.outputs.build_related == 'true' && vars.ENABLE_AIO_AUTOMATION == 'true' && github.event_name == 'push' && needs.detect-changes.outputs.publish_requested == 'true' && needs.integration-tests.result == 'success' }}
     needs:
       - detect-changes
       - validate-template
@@ -432,20 +462,7 @@ jobs:
             echo "upstream_version=${upstream_version}"
             echo "release_package_tag=${release_package_tag}"
             echo "tags<<EOF"
-            if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-              version="${GITHUB_REF#refs/tags/}"
-              version_no_v="${version#v}"
-              IFS='.' read -r major minor patch <<< "${version_no_v}"
-              echo "${image_ghcr}:${version}"
-              if [[ -n "${major:-}" ]]; then
-                echo "${image_ghcr}:v${major}"
-              fi
-              if [[ -n "${major:-}" && -n "${minor:-}" ]]; then
-                echo "${image_ghcr}:v${major}.${minor}"
-              fi
-            else
-              echo "${image_ghcr}:latest"
-            fi
+            echo "${image_ghcr}:latest"
             if [[ -n "${upstream_version}" ]]; then
               echo "${image_ghcr}:${upstream_version}"
               echo "${image_ghcr}:${release_package_tag}"
@@ -453,20 +470,7 @@ jobs:
             echo "${sha_tag_ghcr}"
 
             if [[ "${DOCKERHUB_ENABLED}" == "true" ]]; then
-              if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-                version="${GITHUB_REF#refs/tags/}"
-                version_no_v="${version#v}"
-                IFS='.' read -r major minor patch <<< "${version_no_v}"
-                echo "${image_dockerhub}:${version}"
-                if [[ -n "${major:-}" ]]; then
-                  echo "${image_dockerhub}:v${major}"
-                fi
-                if [[ -n "${major:-}" && -n "${minor:-}" ]]; then
-                  echo "${image_dockerhub}:v${major}.${minor}"
-                fi
-              else
-                echo "${image_dockerhub}:latest"
-              fi
+              echo "${image_dockerhub}:latest"
               if [[ -n "${upstream_version}" ]]; then
                 echo "${image_dockerhub}:${upstream_version}"
                 echo "${image_dockerhub}:${release_package_tag}"
@@ -482,8 +486,8 @@ jobs:
           context: .
           platforms: ${{ env.PUBLISH_PLATFORMS }}
           push: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=infisical-aio-publish
+          cache-to: type=gha,mode=max,scope=infisical-aio-publish
           tags: ${{ steps.prep.outputs.tags }}
           labels: |
             org.opencontainers.image.source=https://github.com/JSONbored/infisical-aio

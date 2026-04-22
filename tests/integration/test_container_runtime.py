@@ -8,7 +8,12 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from tests.helpers import docker_available, reserve_host_port, run_command
+from tests.helpers import (
+    docker_available,
+    ensure_pytest_image,
+    reserve_host_port,
+    run_command,
+)
 
 IMAGE_TAG = "infisical-aio:pytest"
 pytestmark = pytest.mark.integration
@@ -71,7 +76,7 @@ def container(config_dir: Path, data_dir: Path):
 def build_image() -> None:
     if not docker_available():
         pytest.skip("Docker is unavailable; integration tests require Docker/OrbStack.")
-    run_command(["docker", "build", "--platform", "linux/amd64", "-t", IMAGE_TAG, "."])
+    ensure_pytest_image(IMAGE_TAG)
 
 
 def test_happy_path_boot_and_restart_persists_generated_env() -> None:
