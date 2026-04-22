@@ -1,0 +1,460 @@
+schema_version = 1
+
+[docs]
+reference_path = "docs/configuration-surface.md"
+
+[upstream]
+env_source = "https://raw.githubusercontent.com/Infisical/infisical/{version}/backend/src/lib/config/env.ts"
+schema_start = "const envSchema = z"
+schema_end = ".refine("
+skip_keys = [
+  "HOST",
+  "PORT",
+  "NODE_ENV",
+  "INFISICAL_PLATFORM_VERSION",
+  "BCRYPT_SALT_ROUND",
+]
+
+[[groups]]
+id = "core-ports"
+source = "repo"
+kind = "port"
+section = "Core"
+display = "always"
+required = true
+runtime_mode = "always"
+items = [
+  { target = "8080", name = "Web UI Port", default = "8080", description = "Main Infisical web and API port." },
+  { target = "8025", name = "Local Mail Inbox Port", default = "8025", required = false, runtime_mode = "bundled-only", description = "Bundled Mailpit inbox UI port for local or lab email capture. The UI is auth-protected, SMTP stays internal to the container, and this should not be treated like public production mail infrastructure." },
+  { target = "9464", name = "Prometheus Metrics Port", default = "", value = "", display = "advanced", required = false, description = "Optional host port for OTEL Prometheus metrics. Leave blank unless you enable OTEL_TELEMETRY_COLLECTION_ENABLED=true and OTEL_EXPORT_TYPE=prometheus." },
+]
+
+[[groups]]
+id = "core-paths"
+source = "repo"
+kind = "path"
+section = "Core"
+display = "always"
+required = true
+runtime_mode = "always"
+items = [
+  { target = "/config", name = "AppData - Config", default = "/mnt/user/appdata/infisical-aio/config", description = "Persistent wrapper state, generated first-run secrets, and optional bootstrap artifacts." },
+  { target = "/data", name = "AppData - Data", default = "/mnt/user/appdata/infisical-aio/data", description = "Persistent bundled PostgreSQL and Redis data for the default AIO path." },
+]
+
+[[groups]]
+id = "core-upstream"
+source = "upstream"
+kind = "variable"
+section = "Core"
+display = "advanced"
+required = false
+runtime_mode = "always"
+items = [
+  { target = "SITE_URL", name = "Site URL", display = "always", required = true, default = "http://tower.local:8080", description = "Canonical public URL for your instance, including http or https. This should match the real URL users and reverse proxies will use." },
+  { target = "ENCRYPTION_KEY", name = "Encryption Key", mask = true, description = "Optional manual override for the platform encryption key. Leave blank to let the wrapper generate and persist it automatically.", persist_if_missing = true, behavior = "Generated and persisted to /config/aio/generated.env when left blank." },
+  { target = "AUTH_SECRET", name = "Auth Secret", mask = true, description = "Optional manual override for the JWT auth secret. Leave blank to let the wrapper generate and persist it automatically.", persist_if_missing = true, behavior = "Generated and persisted to /config/aio/generated.env when left blank." },
+  { target = "INITIAL_ORGANIZATION_NAME", name = "Initial Organization Name", description = "Optional default organization name shown during initial signup when you are not using API bootstrap." },
+]
+
+[[groups]]
+id = "bootstrap-controls"
+source = "repo"
+kind = "variable"
+section = "Bootstrap"
+display = "advanced"
+required = false
+runtime_mode = "bootstrap-only"
+items = [
+  { target = "AIO_BOOTSTRAP_EMAIL", name = "Auto Bootstrap Admin Email", description = "Optional first admin email for automatic instance bootstrap. Leave blank to bootstrap manually in the UI." },
+  { target = "AIO_BOOTSTRAP_PASSWORD", name = "Auto Bootstrap Admin Password", mask = true, description = "Optional first admin password for automatic instance bootstrap." },
+  { target = "AIO_BOOTSTRAP_ORGANIZATION", name = "Auto Bootstrap Organization", description = "Optional organization name used by the automatic bootstrap flow." },
+  { target = "AIO_BOOTSTRAP_SAVE_RESPONSE", name = "Auto Bootstrap Save Response", default = "false|true", value = "false", description = "When true, the bootstrap API response is persisted to /config/aio/bootstrap-response.json. Treat that file like a root credential." },
+]
+
+[[groups]]
+id = "bundled-mailpit-controls"
+source = "repo"
+kind = "variable"
+section = "Bundled Mailpit"
+display = "advanced"
+required = false
+runtime_mode = "bundled-only"
+items = [
+  { target = "AIO_ENABLE_BUNDLED_MAILPIT", name = "Bundled Local Mail Inbox", default = "true|false", value = "true", description = "When true and SMTP_HOST is left blank, the wrapper runs a bundled Mailpit inbox so Infisical can send local or lab mail without requiring a real SMTP relay. Set false only if you intentionally want SMTP to stay unset until you configure an external server." },
+  { target = "AIO_MAILPIT_UI_USERNAME", name = "Bundled Local Mail UI Username", description = "Optional manual username for the bundled Mailpit inbox UI. Leave blank to let the wrapper generate and persist one in /config/aio/generated.env.", persist_if_missing = true, behavior = "Generated and persisted to /config/aio/generated.env when left blank." },
+  { target = "AIO_MAILPIT_UI_PASSWORD", name = "Bundled Local Mail UI Password", mask = true, description = "Optional manual password for the bundled Mailpit inbox UI. Leave blank to let the wrapper generate and persist one in /config/aio/generated.env.", persist_if_missing = true, behavior = "Generated and persisted to /config/aio/generated.env when left blank." },
+]
+
+[[groups]]
+id = "network-security-repo"
+source = "repo"
+kind = "variable"
+section = "Network/Security"
+display = "advanced"
+required = false
+runtime_mode = "external-service"
+items = [
+  { target = "NODE_EXTRA_CA_CERTS", name = "[Network/Security] NODE_EXTRA_CA_CERTS", mask = false, description = "Optional path to a PEM CA bundle inside the container for private or self-signed upstream certificates, such as external Redis over rediss://. Because /config is persistent, a typical path is /config/aio/certs/custom-ca.pem." },
+]
+
+[[groups]]
+id = "upstream-database"
+source = "upstream"
+kind = "variable"
+section = "Database"
+display = "advanced"
+required = false
+runtime_mode = "external-service"
+name_prefix = "[Database] "
+items = [
+  "GENERATE_SANITIZED_SCHEMA",
+  "SANITIZED_SCHEMA_ROLE",
+  "DB_ROOT_CERT",
+  { target = "DB_CONNECTION_URI", name = "External PostgreSQL DB_CONNECTION_URI", mask = true, description = "Leave blank for the bundled PostgreSQL database. Set this to use an external Postgres instance instead.", persist_if_missing = true, behavior = "When `DB_CONNECTION_URI` and the upstream `DB_*` fields are all blank, the wrapper persists a bundled localhost connection string." },
+  { target = "DB_HOST", behavior = "Used with DB_PORT, DB_USER, DB_PASSWORD, and DB_NAME as the upstream-style external PostgreSQL override." },
+  "DB_PORT",
+  "DB_USER",
+  "DB_PASSWORD",
+  "DB_NAME",
+  "DB_READ_REPLICAS",
+]
+
+[[groups]]
+id = "upstream-redis"
+source = "upstream"
+kind = "variable"
+section = "Redis"
+display = "advanced"
+required = false
+runtime_mode = "external-service"
+name_prefix = "[Redis] "
+items = [
+  { target = "REDIS_URL", name = "External Redis REDIS_URL", mask = true, description = "Leave blank for the bundled Redis instance. Set this to use an external Redis instance instead.", persist_if_missing = true, behavior = "When REDIS_URL plus the sentinel and cluster fields are all blank, the wrapper persists a bundled localhost Redis URL." },
+  "REDIS_USERNAME",
+  "REDIS_PASSWORD",
+  "REDIS_SENTINEL_HOSTS",
+  { target = "REDIS_SENTINEL_MASTER_NAME", behavior = "If left blank in a sentinel topology, the runtime probe falls back to mymaster." },
+  "REDIS_SENTINEL_ENABLE_TLS",
+  "REDIS_SENTINEL_USERNAME",
+  "REDIS_SENTINEL_PASSWORD",
+  "REDIS_CLUSTER_HOSTS",
+  "REDIS_READ_REPLICAS",
+  "REDIS_CLUSTER_ENABLE_TLS",
+  "REDIS_CLUSTER_AWS_ELASTICACHE_DNS_LOOKUP_MODE",
+]
+
+[[groups]]
+id = "upstream-smtp"
+source = "upstream"
+kind = "variable"
+section = "SMTP"
+display = "advanced"
+required = false
+runtime_mode = "external-service"
+name_prefix = "[SMTP] "
+items = [
+  { target = "SMTP_HOST", description = "Optional external SMTP server hostname for transactional email features. Leave blank to use the bundled local Mailpit inbox for local or lab mail capture.", bundled_default = "127.0.0.1" },
+  { target = "SMTP_PORT", description = "External SMTP server port. If SMTP_HOST is blank, the wrapper uses bundled Mailpit on internal port 1025 instead.", bundled_default = "1025" },
+  { target = "SMTP_USERNAME", description = "Optional external SMTP username." },
+  { target = "SMTP_PASSWORD", description = "Optional external SMTP password." },
+  { target = "SMTP_FROM_ADDRESS", description = "Optional sender email address used for Infisical emails. When bundled Mailpit is active and this is blank, the wrapper defaults it to `no-reply@infisical.local`.", bundled_default = "no-reply@infisical.local" },
+  { target = "SMTP_FROM_NAME", description = "Optional sender display name. Default is Infisical.", persist_if_missing = true, bundled_default = "Infisical", behavior = "Persisted to /config/aio/generated.env on first boot if left blank." },
+  { target = "SMTP_IGNORE_TLS", default = "false|true", value = "false", bundled_default = "true" },
+  { target = "SMTP_REQUIRE_TLS", default = "true|false", value = "true", bundled_default = "false" },
+  { target = "SMTP_TLS_REJECT_UNAUTHORIZED", default = "true|false", value = "true", bundled_default = "false" },
+  "SMTP_CUSTOM_CA_CERT",
+]
+
+[[groups]]
+id = "upstream-telemetry"
+source = "upstream"
+kind = "variable"
+section = "Telemetry"
+display = "advanced"
+required = false
+runtime_mode = "always"
+name_prefix = "[Telemetry] "
+items = [
+  { target = "TELEMETRY_ENABLED", default = "false|true", value = "false", description = "Usage telemetry toggle. The AIO wrapper defaults this to false for privacy-first self-hosting.", persist_if_missing = true, behavior = "Persisted as false on first boot unless you set it explicitly." },
+  "POSTHOG_HOST",
+  "POSTHOG_PROJECT_API_KEY",
+  { target = "OTEL_TELEMETRY_COLLECTION_ENABLED", default = "false|true", value = "false" },
+  "OTEL_EXPORT_OTLP_ENDPOINT",
+  "OTEL_OTLP_PUSH_INTERVAL",
+  "OTEL_COLLECTOR_BASIC_AUTH_USERNAME",
+  "OTEL_COLLECTOR_BASIC_AUTH_PASSWORD",
+  { target = "OTEL_EXPORT_TYPE", behavior = "Publish host port 9464 only when you intentionally use the prometheus export type." },
+  { target = "DATADOG_PROFILING_ENABLED", default = "false|true", value = "false" },
+  "DATADOG_ENV",
+  "DATADOG_SERVICE",
+  "DATADOG_HOSTNAME",
+]
+
+[[groups]]
+id = "upstream-sso-auth"
+source = "upstream"
+kind = "variable"
+section = "SSO/Auth"
+display = "advanced"
+required = false
+runtime_mode = "always"
+name_prefix = "[SSO/Auth] "
+items = [
+  "CLIENT_ID_GOOGLE_LOGIN",
+  "CLIENT_SECRET_GOOGLE_LOGIN",
+  "CLIENT_ID_GITHUB_LOGIN",
+  "CLIENT_SECRET_GITHUB_LOGIN",
+  "CLIENT_ID_GITLAB_LOGIN",
+  "CLIENT_SECRET_GITLAB_LOGIN",
+  "CLIENT_GITLAB_LOGIN_URL",
+  "DEFAULT_SAML_ORG_SLUG",
+  "CLIENT_ID_HEROKU",
+  "CLIENT_SECRET_HEROKU",
+  "CLIENT_ID_VERCEL",
+  "CLIENT_SECRET_VERCEL",
+  "CLIENT_SLUG_VERCEL",
+  "CLIENT_ID_NETLIFY",
+  "CLIENT_SECRET_NETLIFY",
+  "CLIENT_ID_BITBUCKET",
+  "CLIENT_SECRET_BITBUCKET",
+  "CLIENT_ID_GCP_SECRET_MANAGER",
+  "CLIENT_SECRET_GCP_SECRET_MANAGER",
+  "CLIENT_ID_GITHUB",
+  "CLIENT_SECRET_GITHUB",
+  "CLIENT_ID_GITHUB_APP",
+  "CLIENT_SECRET_GITHUB_APP",
+  "CLIENT_PRIVATE_KEY_GITHUB_APP",
+  "CLIENT_APP_ID_GITHUB_APP",
+  "CLIENT_SLUG_GITHUB_APP",
+  "CLIENT_ID_AZURE",
+  "CLIENT_SECRET_AZURE",
+  "CLIENT_ID_AWS_INTEGRATION",
+  "CLIENT_SECRET_AWS_INTEGRATION",
+  "CLIENT_ID_GITLAB",
+  "CLIENT_SECRET_GITLAB",
+]
+
+[[groups]]
+id = "upstream-secret-scanning"
+source = "upstream"
+kind = "variable"
+section = "Secret Scanning"
+display = "advanced"
+required = false
+runtime_mode = "always"
+name_prefix = "[Secret Scanning] "
+items = [
+  { target = "DISABLE_SECRET_SCANNING", default = "false|true", value = "false" },
+  "SECRET_SCANNING_WEBHOOK_PROXY",
+  "SECRET_SCANNING_WEBHOOK_SECRET",
+  "SECRET_SCANNING_GIT_APP_ID",
+  "SECRET_SCANNING_PRIVATE_KEY",
+  "SECRET_SCANNING_ORG_WHITELIST",
+  "SECRET_SCANNING_GIT_APP_SLUG",
+]
+
+[[groups]]
+id = "upstream-audit-logs"
+source = "upstream"
+kind = "variable"
+section = "Audit Logs"
+display = "advanced"
+required = false
+runtime_mode = "always"
+name_prefix = "[Audit Logs] "
+items = [
+  "AUDIT_LOGS_DB_CONNECTION_URI",
+  "AUDIT_LOGS_DB_ROOT_CERT",
+  "CLICKHOUSE_URL",
+  "CLICKHOUSE_AUDIT_LOG_INSERT_SETTINGS",
+  "CLICKHOUSE_AUDIT_LOG_ENGINE",
+  "CLICKHOUSE_AUDIT_LOG_TABLE_NAME",
+  { target = "CLICKHOUSE_AUDIT_LOG_ENABLED", default = "true|false", value = "true" },
+  { target = "AUDIT_LOG_STREAMS_ENABLED", default = "true|false", value = "true" },
+  { target = "DISABLE_POSTGRES_AUDIT_LOG_STORAGE", default = "false|true", value = "false" },
+]
+
+[[groups]]
+id = "upstream-app-connections"
+source = "upstream"
+kind = "variable"
+section = "App Connections"
+display = "advanced"
+required = false
+runtime_mode = "always"
+name_prefix = "[App Connections] "
+items = [
+  "INF_APP_CONNECTION_AWS_ACCESS_KEY_ID",
+  "INF_APP_CONNECTION_AWS_SECRET_ACCESS_KEY",
+  "INF_APP_CONNECTION_GITHUB_OAUTH_CLIENT_ID",
+  "INF_APP_CONNECTION_GITHUB_OAUTH_CLIENT_SECRET",
+  "INF_APP_CONNECTION_GITHUB_APP_CLIENT_ID",
+  "INF_APP_CONNECTION_GITHUB_APP_CLIENT_SECRET",
+  "INF_APP_CONNECTION_GITHUB_APP_PRIVATE_KEY",
+  "INF_APP_CONNECTION_GITHUB_APP_SLUG",
+  "INF_APP_CONNECTION_GITHUB_APP_ID",
+  "INF_APP_CONNECTION_GITHUB_RADAR_APP_CLIENT_ID",
+  "INF_APP_CONNECTION_GITHUB_RADAR_APP_CLIENT_SECRET",
+  "INF_APP_CONNECTION_GITHUB_RADAR_APP_PRIVATE_KEY",
+  "INF_APP_CONNECTION_GITHUB_RADAR_APP_SLUG",
+  "INF_APP_CONNECTION_GITHUB_RADAR_APP_ID",
+  "INF_APP_CONNECTION_GITHUB_RADAR_APP_WEBHOOK_SECRET",
+  "INF_APP_CONNECTION_GITLAB_OAUTH_CLIENT_ID",
+  "INF_APP_CONNECTION_GITLAB_OAUTH_CLIENT_SECRET",
+  "INF_APP_CONNECTION_GCP_SERVICE_ACCOUNT_CREDENTIAL",
+  "INF_APP_CONNECTION_AZURE_CLIENT_ID",
+  "INF_APP_CONNECTION_AZURE_CLIENT_SECRET",
+  "INF_APP_CONNECTION_AZURE_APP_CONFIGURATION_CLIENT_ID",
+  "INF_APP_CONNECTION_AZURE_APP_CONFIGURATION_CLIENT_SECRET",
+  "INF_APP_CONNECTION_AZURE_KEY_VAULT_CLIENT_ID",
+  "INF_APP_CONNECTION_AZURE_KEY_VAULT_CLIENT_SECRET",
+  "INF_APP_CONNECTION_AZURE_CLIENT_SECRETS_CLIENT_ID",
+  "INF_APP_CONNECTION_AZURE_CLIENT_SECRETS_CLIENT_SECRET",
+  "INF_APP_CONNECTION_AZURE_DEVOPS_CLIENT_ID",
+  "INF_APP_CONNECTION_AZURE_DEVOPS_CLIENT_SECRET",
+  "INF_APP_CONNECTION_HEROKU_OAUTH_CLIENT_ID",
+  "INF_APP_CONNECTION_HEROKU_OAUTH_CLIENT_SECRET",
+]
+
+[[groups]]
+id = "upstream-gateway-pam"
+source = "upstream"
+kind = "variable"
+section = "Gateway/PAM"
+display = "advanced"
+required = false
+runtime_mode = "always"
+name_prefix = "[Gateway/PAM] "
+items = [
+  "GATEWAY_INFISICAL_STATIC_IP_ADDRESS",
+  "GATEWAY_RELAY_ADDRESS",
+  "GATEWAY_RELAY_REALM",
+  "GATEWAY_RELAY_AUTH_SECRET",
+  "RELAY_AUTH_SECRET",
+  "PAM_AWS_ACCESS_KEY_ID",
+  "PAM_AWS_SECRET_ACCESS_KEY",
+]
+
+[[groups]]
+id = "upstream-hsm"
+source = "upstream"
+kind = "variable"
+section = "HSM"
+display = "advanced"
+required = false
+runtime_mode = "always"
+name_prefix = "[HSM] "
+items = ["HSM_LIB_PATH", "HSM_PIN", "HSM_KEY_LABEL", "HSM_SLOT"]
+
+[[groups]]
+id = "upstream-acme"
+source = "upstream"
+kind = "variable"
+section = "ACME"
+display = "advanced"
+required = false
+runtime_mode = "always"
+name_prefix = "[ACME] "
+items = [
+  "ACME_DEVELOPMENT_MODE",
+  "ACME_SKIP_UPSTREAM_VALIDATION",
+  "ACME_DEVELOPMENT_HTTP01_CHALLENGE_HOST_OVERRIDES",
+  "ACME_DNS_RESOLVER_SERVERS",
+  "ACME_DNS_RESOLVE_RESOLVER_SERVERS_HOST_ENABLED",
+]
+
+[[groups]]
+id = "upstream-platform"
+source = "upstream"
+kind = "variable"
+section = "Platform"
+display = "advanced"
+required = false
+runtime_mode = "always"
+name_prefix = "[Platform] "
+items = [
+  "LICENSE_SERVER_URL",
+  "LICENSE_SERVER_KEY",
+  "LICENSE_KEY",
+  "LICENSE_KEY_OFFLINE",
+  "INFISICAL_CLOUD",
+  "INFISICAL_DEDICATED",
+  "INFISICAL_PRIMARY_INSTANCE_URL",
+]
+
+[[groups]]
+id = "upstream-network-security"
+source = "upstream"
+kind = "variable"
+section = "Network/Security"
+display = "advanced"
+required = false
+runtime_mode = "always"
+name_prefix = "[Network/Security] "
+items = [
+  "SSL_CLIENT_CERTIFICATE_HEADER_KEY",
+  "IDENTITY_TLS_CERT_AUTH_CLIENT_CERTIFICATE_HEADER_KEY",
+  "CORS_ALLOWED_ORIGINS",
+  "CORS_ALLOWED_HEADERS",
+]
+
+[[groups]]
+id = "upstream-advanced"
+source = "upstream"
+kind = "variable"
+section = "Advanced"
+display = "advanced"
+required = false
+runtime_mode = "always"
+name_prefix = "[Advanced] "
+items = [
+  { target = "KUBERNETES_AUTO_FETCH_SERVICE_ACCOUNT_TOKEN", default = "false|true", value = "false" },
+  "DISABLE_AUDIT_LOG_STORAGE",
+  "MAX_LEASE_LIMIT",
+  "SALT_ROUNDS",
+  "ROOT_ENCRYPTION_KEY",
+  { target = "QUEUE_WORKERS_ENABLED", default = "true|false", value = "true" },
+  "QUEUE_WORKER_PROFILE",
+  "HTTPS_ENABLED",
+  "ROTATION_DEVELOPMENT_MODE",
+  "DAILY_RESOURCE_CLEAN_UP_DEVELOPMENT_MODE",
+  "BDD_NOCK_API_ENABLED",
+  "DNS_MADE_EASY_SANDBOX_ENABLED",
+  "COOKIE_SECRET_SIGN_KEY",
+  "LOOPS_API_KEY",
+  "HUBSPOT_PORTAL_ID",
+  "HUBSPOT_SIGNUP_FORM_ID",
+  "GITHUB_API_TOKEN",
+  "JWT_AUTH_LIFETIME",
+  "JWT_SIGNUP_LIFETIME",
+  "JWT_REFRESH_LIFETIME",
+  "JWT_INVITE_LIFETIME",
+  "JWT_MFA_LIFETIME",
+  "JWT_PROVIDER_AUTH_LIFETIME",
+  "URL_GITLAB_URL",
+  "STANDALONE_MODE",
+  { target = "MAINTENANCE_MODE", default = "false|true", value = "false" },
+  "CAPTCHA_SECRET",
+  "CAPTCHA_SITE_KEY",
+  "INTERCOM_ID",
+  "CDN_HOST",
+  "PYLON_API_KEY",
+  "DISABLE_AUDIT_LOG_GENERATION",
+  "WORKFLOW_SLACK_CLIENT_ID",
+  "WORKFLOW_SLACK_CLIENT_SECRET",
+  { target = "ENABLE_MSSQL_SECRET_ROTATION_ENCRYPT", default = "true|false", value = "true" },
+  "PARAMS_FOLDER_SECRET_DETECTION_PATHS",
+  "PARAMS_FOLDER_SECRET_DETECTION_ENTROPY",
+  { target = "USE_PG_QUEUE", default = "false|true", value = "false" },
+  { target = "SHOULD_INIT_PG_QUEUE", default = "false|true", value = "false" },
+  { target = "DYNAMIC_SECRET_ALLOW_INTERNAL_IP", default = "false|true", value = "false" },
+  "DYNAMIC_SECRET_AWS_ACCESS_KEY_ID",
+  "DYNAMIC_SECRET_AWS_SECRET_ACCESS_KEY",
+  { target = "ALLOW_INTERNAL_IP_CONNECTIONS", default = "false|true", value = "false" },
+  { target = "SHOULD_USE_DATADOG_TRACER", default = "false|true", value = "false" },
+  "PIT_CHECKPOINT_WINDOW",
+  "PIT_TREE_CHECKPOINT_WINDOW",
+  "TNS_ADMIN",
+  "INTERNAL_REGION",
+]

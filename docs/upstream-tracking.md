@@ -21,13 +21,14 @@ That makes drift explicit and lets the upstream monitor open controlled PRs for 
 
 ## Config Surface Source Of Truth
 
-The CA template is generated from the pinned upstream `backend/src/lib/config/env.ts`, not from the newest docs page alone.
+The repo-native source of truth is `config_surface.toml`, not the generated XML and not the newest docs page alone.
 
 That is intentional:
 
-- upstream docs can mention knobs that are newer than the pinned image or that come from the broader runtime rather than Infisical's validated env schema
-- this wrapper adds a small manual layer for Unraid-relevant extras the app/runtime supports directly, such as `NODE_EXTRA_CA_CERTS`, the optional Prometheus metrics port `9464`, and the bundled local Mailpit inbox controls
-- if docs and runtime disagree, the pinned runtime wins until the upstream image is bumped and re-audited
+- the manifest explicitly models every exposed config item, including repo-specific Unraid controls, requiredness, runtime mode, and help text
+- upstream-backed entries are validated against the pinned `backend/src/lib/config/env.ts`
+- runtime shell parsing and first-boot defaults are validated against that same manifest so drift fails fast
+- the CA template XML and generated markdown reference both render from the same source
 
 ## Current Pattern
 

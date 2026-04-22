@@ -2,6 +2,8 @@
 
 `infisical-aio` is meant to boot cleanly with the bundled services first, then let you override pieces only when you actually need to.
 
+If you need the exact Unraid-exposed config list, use `config_surface.toml` plus the generated `docs/configuration-surface.md` reference. That pair is now the repo-native source of truth for the CA template surface.
+
 ## Internal vs External Services
 
 Default AIO path:

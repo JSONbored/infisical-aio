@@ -8,6 +8,8 @@
 - external PostgreSQL and Redis remain available as advanced overrides
 - required first-run secrets are generated and persisted automatically if you leave them blank
 
+The canonical exposed config manifest is `config_surface.toml`. The generated reference at `docs/configuration-surface.md` is the place to audit the full Unraid-facing surface, runtime modes, and defaults without chasing XML, shell scripts, and prose separately.
+
 ## Runtime Layout
 
 - `/config`

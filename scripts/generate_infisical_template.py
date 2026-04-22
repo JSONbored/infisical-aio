@@ -6,175 +6,12 @@ import html
 import re
 import sys
 from pathlib import Path
-from urllib.error import HTTPError, URLError
-from urllib.parse import urlparse
-from urllib.request import urlopen
+
+from config_surface import collect_validation_errors, render_xml_configs
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCKERFILE = ROOT / "Dockerfile"
 OUTPUT = ROOT / "infisical-aio.xml"
 CHANGELOG = ROOT / "CHANGELOG.md"
-
-
-def docker_arg(name: str) -> str:
-    pattern = re.compile(rf"^ARG {re.escape(name)}=(.+)$", re.MULTILINE)
-    match = pattern.search(DOCKERFILE.read_text())
-    if not match:
-        raise SystemExit(f"Missing Dockerfile ARG {name}")
-    return match.group(1).strip()
-
-
-def fetch_env_source(version: str) -> str:
-    url = f"https://raw.githubusercontent.com/Infisical/infisical/{version}/backend/src/lib/config/env.ts"
-    parsed = urlparse(url)
-    if parsed.scheme != "https" or parsed.netloc != "raw.githubusercontent.com":
-        raise SystemExit(f"Refusing to fetch env schema from unexpected URL: {url}")
-    try:
-        with urlopen(
-            url, timeout=30
-        ) as response:  # nosec B310 - scheme and host are validated immediately above
-            return response.read().decode("utf-8")
-    except (HTTPError, URLError) as exc:
-        raise SystemExit(
-            f"Unable to fetch upstream env schema from {url}: {exc}"
-        ) from exc
-
-
-def parse_schema_keys(source: str) -> list[str]:
-    start = source.index("const envSchema = z")
-    end = source.index(".refine(", start)
-    block = source[start:end]
-    keys: list[str] = []
-    for line in block.splitlines():
-        match = re.match(r"\s*([A-Z0-9_]+):", line)
-        if match:
-            keys.append(match.group(1))
-    return keys
-
-
-SKIP_KEYS = {
-    "HOST",
-    "PORT",
-    "NODE_ENV",
-    "INFISICAL_PLATFORM_VERSION",
-    "BCRYPT_SALT_ROUND",
-}
-MASK_HINTS = ("PASSWORD", "SECRET", "TOKEN", "KEY", "CERT", "DSN")
-BOOL_DEFAULTS = {
-    "TELEMETRY_ENABLED": "false|true",  # nosec B105
-    "QUEUE_WORKERS_ENABLED": "true|false",  # nosec B105
-    "DISABLE_SECRET_SCANNING": "false|true",  # nosec B105
-    "CLICKHOUSE_AUDIT_LOG_ENABLED": "true|false",  # nosec B105
-    "AUDIT_LOG_STREAMS_ENABLED": "true|false",  # nosec B105
-    "DISABLE_POSTGRES_AUDIT_LOG_STORAGE": "false|true",  # nosec B105
-    "KUBERNETES_AUTO_FETCH_SERVICE_ACCOUNT_TOKEN": "false|true",  # nosec B105
-    "SMTP_IGNORE_TLS": "false|true",  # nosec B105
-    "SMTP_REQUIRE_TLS": "true|false",  # nosec B105
-    "SMTP_TLS_REJECT_UNAUTHORIZED": "true|false",  # nosec B105
-    "OTEL_TELEMETRY_COLLECTION_ENABLED": "false|true",  # nosec B105
-    "SHOULD_USE_DATADOG_TRACER": "false|true",  # nosec B105
-    "DATADOG_PROFILING_ENABLED": "false|true",  # nosec B105
-    "ALLOW_INTERNAL_IP_CONNECTIONS": "false|true",  # nosec B105
-    "USE_PG_QUEUE": "false|true",  # nosec B105
-    "SHOULD_INIT_PG_QUEUE": "false|true",  # nosec B105
-    "DYNAMIC_SECRET_ALLOW_INTERNAL_IP": "false|true",  # nosec B105
-    "ENABLE_MSSQL_SECRET_ROTATION_ENCRYPT": "true|false",  # nosec B105
-    "MAINTENANCE_MODE": "false|true",  # nosec B105
-}
-MANUAL_KEYS = {
-    "SITE_URL",
-    "ENCRYPTION_KEY",
-    "AUTH_SECRET",
-    "DB_CONNECTION_URI",
-    "REDIS_URL",
-    "SMTP_HOST",
-    "SMTP_PORT",
-    "SMTP_USERNAME",
-    "SMTP_PASSWORD",
-    "SMTP_FROM_ADDRESS",
-    "SMTP_FROM_NAME",
-    "TELEMETRY_ENABLED",
-    "INITIAL_ORGANIZATION_NAME",
-}
-
-
-def config_name(key: str) -> str:
-    if key.startswith("SMTP_"):
-        return f"[SMTP] {key}"
-    if key.startswith("CLIENT_") or key.startswith("DEFAULT_SAML_"):
-        return f"[SSO/Auth] {key}"
-    if key.startswith("INF_APP_CONNECTION_"):
-        return f"[App Connections] {key}"
-    if key.startswith("SECRET_SCANNING_") or key.startswith("DISABLE_SECRET_SCANNING"):
-        return f"[Secret Scanning] {key}"
-    if (
-        key.startswith("OTEL_")
-        or key.startswith("DATADOG_")
-        or key.startswith("POSTHOG_")
-        or key.startswith("TELEMETRY_")
-    ):
-        return f"[Telemetry] {key}"
-    if (
-        key.startswith("CLICKHOUSE_")
-        or key.startswith("AUDIT_")
-        or key.startswith("DISABLE_POSTGRES_AUDIT_LOG_STORAGE")
-    ):
-        return f"[Audit Logs] {key}"
-    if key.startswith("REDIS_"):
-        return f"[Redis] {key}"
-    if (
-        key.startswith("DB_")
-        or key.startswith("SANITIZED_SCHEMA")
-        or key.startswith("GENERATE_SANITIZED_SCHEMA")
-    ):
-        return f"[Database] {key}"
-    if key.startswith("ACME_"):
-        return f"[ACME] {key}"
-    if key.startswith("GATEWAY_") or key.startswith("RELAY_") or key.startswith("PAM_"):
-        return f"[Gateway/PAM] {key}"
-    if key.startswith("HSM_"):
-        return f"[HSM] {key}"
-    if key.startswith("CORS_") or key.endswith("_HEADER_KEY"):
-        return f"[Network/Security] {key}"
-    if (
-        key.startswith("LICENSE_")
-        or key.startswith("INFISICAL_")
-        or key in {"INFISICAL_CLOUD", "INFISICAL_DEDICATED"}
-    ):
-        return f"[Platform] {key}"
-    return f"[Advanced] {key}"
-
-
-def description_for(key: str) -> str:
-    custom = {
-        "SITE_URL": "Canonical public URL for your instance, including http or https. This should match the real URL users and reverse proxies will use.",
-        "ENCRYPTION_KEY": "Optional manual override for the platform encryption key. Leave blank to let the wrapper generate and persist it automatically.",
-        "AUTH_SECRET": "Optional manual override for the JWT auth secret. Leave blank to let the wrapper generate and persist it automatically.",  # nosec B105
-        "DB_CONNECTION_URI": "Leave blank for the bundled PostgreSQL database. Set this to use an external Postgres instance instead.",
-        "REDIS_URL": "Leave blank for the bundled Redis instance. Set this to use an external Redis instance instead.",
-        "SMTP_HOST": "Optional external SMTP server hostname for transactional email features. Leave blank to use the bundled local Mailpit inbox for local or lab mail capture.",
-        "SMTP_PORT": "External SMTP server port. If SMTP_HOST is blank, the wrapper uses bundled Mailpit on internal port 1025 instead.",
-        "SMTP_USERNAME": "Optional external SMTP username.",
-        "SMTP_PASSWORD": "Optional external SMTP password.",  # nosec B105
-        "SMTP_FROM_ADDRESS": "Optional sender email address used for Infisical emails. When bundled Mailpit is active and this is blank, the wrapper defaults it to no-reply@infisical.local.",
-        "SMTP_FROM_NAME": "Optional sender display name. Default is Infisical.",
-        "TELEMETRY_ENABLED": "Usage telemetry toggle. The AIO wrapper defaults this to false for privacy-first self-hosting.",
-        "INITIAL_ORGANIZATION_NAME": "Optional default organization name shown during initial signup when you are not using API bootstrap.",
-    }
-    return custom.get(key, f"Advanced upstream Infisical environment variable `{key}`.")
-
-
-def render_config(key: str) -> str:
-    default = BOOL_DEFAULTS.get(key, "")
-    value = default.split("|", 1)[0] if "|" in default else default
-    mask = "true" if any(part in key for part in MASK_HINTS) else "false"
-    description = html.escape(description_for(key), quote=True)
-    return (
-        f'  <Config Name="{html.escape(config_name(key), quote=True)}" '
-        f'Target="{html.escape(key, quote=True)}" Default="{html.escape(default, quote=True)}" '
-        f'Mode="" Description="{description}" Type="Variable" Display="advanced" Required="false" Mask="{mask}">'
-        f"{html.escape(value)}</Config>"
-    )
 
 
 def fallback_changes() -> str:
@@ -276,14 +113,11 @@ def render_changes() -> str:
 
 
 def render_xml() -> str:
-    version = docker_arg("UPSTREAM_VERSION")
-    env_source = fetch_env_source(version)
-    keys = [
-        key
-        for key in parse_schema_keys(env_source)
-        if key not in SKIP_KEYS and key not in MANUAL_KEYS
-    ]
-    configs = "\n".join(render_config(key) for key in keys)
+    errors = collect_validation_errors()
+    if errors:
+        raise SystemExit("\n".join(errors))
+
+    configs = render_xml_configs()
     changes = render_changes()
     return f"""<?xml version="1.0"?>
 <Container version="2">
@@ -361,37 +195,6 @@ def render_xml() -> str:
     </Volume>
   </Data>
   <Environment/>
-
-  <Config Name="Web UI Port" Target="8080" Default="8080" Mode="tcp" Description="Main Infisical web and API port." Type="Port" Display="always" Required="true" Mask="false">8080</Config>
-  <Config Name="Local Mail Inbox Port" Target="8025" Default="8025" Mode="tcp" Description="Bundled Mailpit inbox UI port for local or lab email capture. The UI is auth-protected, SMTP stays internal to the container, and this should not be treated like public production mail infrastructure." Type="Port" Display="always" Required="false" Mask="false">8025</Config>
-  <Config Name="Prometheus Metrics Port" Target="9464" Default="" Mode="tcp" Description="Optional host port for OTEL Prometheus metrics. Leave blank unless you enable OTEL_TELEMETRY_COLLECTION_ENABLED=true and OTEL_EXPORT_TYPE=prometheus." Type="Port" Display="advanced" Required="false" Mask="false"></Config>
-  <Config Name="AppData - Config" Target="/config" Default="/mnt/user/appdata/infisical-aio/config" Mode="rw" Description="Persistent wrapper state, generated first-run secrets, and optional bootstrap artifacts." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/infisical-aio/config</Config>
-  <Config Name="AppData - Data" Target="/data" Default="/mnt/user/appdata/infisical-aio/data" Mode="rw" Description="Persistent bundled PostgreSQL and Redis data for the default AIO path." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/infisical-aio/data</Config>
-  <Config Name="Site URL" Target="SITE_URL" Default="http://tower.local:8080" Mode="" Description="Canonical public URL for your instance, including http or https. This should match the real URL users and reverse proxies will use." Type="Variable" Display="always" Required="true" Mask="false">http://tower.local:8080</Config>
-
-  <Config Name="Encryption Key" Target="ENCRYPTION_KEY" Default="" Mode="" Description="Optional manual override for the platform encryption key. Leave blank to let the wrapper generate and persist it automatically." Type="Variable" Display="advanced" Required="false" Mask="true"/>
-  <Config Name="Auth Secret" Target="AUTH_SECRET" Default="" Mode="" Description="Optional manual override for the JWT auth secret. Leave blank to let the wrapper generate and persist it automatically." Type="Variable" Display="advanced" Required="false" Mask="true"/>
-  <Config Name="Initial Organization Name" Target="INITIAL_ORGANIZATION_NAME" Default="" Mode="" Description="Optional default organization name shown during initial signup when you are not using API bootstrap." Type="Variable" Display="advanced" Required="false" Mask="false"/>
-  <Config Name="External PostgreSQL DB_CONNECTION_URI" Target="DB_CONNECTION_URI" Default="" Mode="" Description="Leave blank for the bundled PostgreSQL database. Set this to use an external Postgres instance instead." Type="Variable" Display="advanced" Required="false" Mask="true"/>
-  <Config Name="External Redis REDIS_URL" Target="REDIS_URL" Default="" Mode="" Description="Leave blank for the bundled Redis instance. Set this to use an external Redis instance instead." Type="Variable" Display="advanced" Required="false" Mask="true"/>
-  <Config Name="[Network/Security] NODE_EXTRA_CA_CERTS" Target="NODE_EXTRA_CA_CERTS" Default="" Mode="" Description="Optional path to a PEM CA bundle inside the container for private or self-signed upstream certificates, such as external Redis over rediss://. Because /config is persistent, a typical path is /config/aio/certs/custom-ca.pem." Type="Variable" Display="advanced" Required="false" Mask="false"/>
-
-  <Config Name="Auto Bootstrap Admin Email" Target="AIO_BOOTSTRAP_EMAIL" Default="" Mode="" Description="Optional first admin email for automatic instance bootstrap. Leave blank to bootstrap manually in the UI." Type="Variable" Display="advanced" Required="false" Mask="false"/>
-  <Config Name="Auto Bootstrap Admin Password" Target="AIO_BOOTSTRAP_PASSWORD" Default="" Mode="" Description="Optional first admin password for automatic instance bootstrap." Type="Variable" Display="advanced" Required="false" Mask="true"/>
-  <Config Name="Auto Bootstrap Organization" Target="AIO_BOOTSTRAP_ORGANIZATION" Default="" Mode="" Description="Optional organization name used by the automatic bootstrap flow." Type="Variable" Display="advanced" Required="false" Mask="false"/>
-  <Config Name="Auto Bootstrap Save Response" Target="AIO_BOOTSTRAP_SAVE_RESPONSE" Default="false|true" Mode="" Description="When true, the bootstrap API response is persisted to /config/aio/bootstrap-response.json. Treat that file like a root credential." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
-
-  <Config Name="Bundled Local Mail Inbox" Target="AIO_ENABLE_BUNDLED_MAILPIT" Default="true|false" Mode="" Description="When true and SMTP_HOST is left blank, the wrapper runs a bundled Mailpit inbox so Infisical can send local or lab mail without requiring a real SMTP relay. Set false only if you intentionally want SMTP to stay unset until you configure an external server." Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
-  <Config Name="Bundled Local Mail UI Username" Target="AIO_MAILPIT_UI_USERNAME" Default="" Mode="" Description="Optional manual username for the bundled Mailpit inbox UI. Leave blank to let the wrapper generate and persist one in /config/aio/generated.env." Type="Variable" Display="advanced" Required="false" Mask="false"/>
-  <Config Name="Bundled Local Mail UI Password" Target="AIO_MAILPIT_UI_PASSWORD" Default="" Mode="" Description="Optional manual password for the bundled Mailpit inbox UI. Leave blank to let the wrapper generate and persist one in /config/aio/generated.env." Type="Variable" Display="advanced" Required="false" Mask="true"/>
-
-  <Config Name="[SMTP] SMTP_HOST" Target="SMTP_HOST" Default="" Mode="" Description="Optional external SMTP server hostname for transactional email features. Leave blank to use the bundled local Mailpit inbox for local or lab mail capture." Type="Variable" Display="advanced" Required="false" Mask="false"/>
-  <Config Name="[SMTP] SMTP_PORT" Target="SMTP_PORT" Default="" Mode="" Description="External SMTP server port. If SMTP_HOST is blank, the wrapper uses bundled Mailpit on internal port 1025 instead." Type="Variable" Display="advanced" Required="false" Mask="false"/>
-  <Config Name="[SMTP] SMTP_USERNAME" Target="SMTP_USERNAME" Default="" Mode="" Description="Optional external SMTP username." Type="Variable" Display="advanced" Required="false" Mask="false"/>
-  <Config Name="[SMTP] SMTP_PASSWORD" Target="SMTP_PASSWORD" Default="" Mode="" Description="Optional external SMTP password." Type="Variable" Display="advanced" Required="false" Mask="true"/>
-  <Config Name="[SMTP] SMTP_FROM_ADDRESS" Target="SMTP_FROM_ADDRESS" Default="" Mode="" Description="Optional sender email address used for Infisical emails. When bundled Mailpit is active and this is blank, the wrapper defaults it to no-reply@infisical.local." Type="Variable" Display="advanced" Required="false" Mask="false"/>
-  <Config Name="[SMTP] SMTP_FROM_NAME" Target="SMTP_FROM_NAME" Default="" Mode="" Description="Optional sender display name. Default is Infisical." Type="Variable" Display="advanced" Required="false" Mask="false"/>
-  <Config Name="[Telemetry] TELEMETRY_ENABLED" Target="TELEMETRY_ENABLED" Default="false|true" Mode="" Description="Usage telemetry toggle. The AIO wrapper defaults this to false for privacy-first self-hosting." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
 
 {configs}
 </Container>

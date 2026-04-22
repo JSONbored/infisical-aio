@@ -51,6 +51,8 @@ This repo is deliberately not a stripped-down wrapper. Advanced View exposes the
 
 The wrapper still defaults to the internal bundled services so new Unraid users are not forced into extra containers on day one.
 
+The canonical exposed configuration manifest now lives in [config_surface.toml](config_surface.toml). The generated operator-facing reference is [docs/configuration-surface.md](docs/configuration-surface.md), and the CA template XML is rendered from the same source.
+
 Additional advanced wrapper-specific knobs worth knowing about:
 
 - `AIO_ENABLE_BUNDLED_MAILPIT` to keep or disable the bundled local inbox when `SMTP_HOST` is blank
@@ -95,6 +97,9 @@ trunk check --show-existing --all
 The extended runtime matrix now lives behind an opt-in pytest marker so the deeper bundled-vs-external coverage still runs through the shared suite:
 
 ```bash
+python3 scripts/validate_config_surface.py
+python3 scripts/generate_infisical_template.py --check
+python3 scripts/generate_config_surface_docs.py --check
 INFISICAL_ENABLE_RUNTIME_MATRIX=1 \
 .venv-local/bin/pytest tests/integration/test_runtime_matrix.py -m extended_integration
 ```
