@@ -3,14 +3,15 @@ from __future__ import annotations
 import time
 import uuid
 from contextlib import contextmanager
-from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pytest
 
 from tests.helpers import (
+    container_path_exists,
     docker_available,
+    docker_volume,
     ensure_pytest_image,
+    read_container_file,
     reserve_host_port,
     run_command,
 )
@@ -44,7 +45,7 @@ def wait_for_http(name: str, host_port: int, timeout: int = 300) -> None:
 
 
 @contextmanager
-def container(config_dir: Path, data_dir: Path):
+def container(config_volume: str, data_volume: str):
     name = f"infisical-aio-pytest-{uuid.uuid4().hex[:10]}"
     host_port = reserve_host_port()
     command = [
@@ -60,9 +61,9 @@ def container(config_dir: Path, data_dir: Path):
         "-e",
         f"SITE_URL=http://127.0.0.1:{host_port}",
         "-v",
-        f"{config_dir}:/config",
+        f"{config_volume}:/config",
         "-v",
-        f"{data_dir}:/data",
+        f"{data_volume}:/data",
         IMAGE_TAG,
     ]
     run_command(command)
@@ -81,14 +82,15 @@ def build_image() -> None:
 
 def test_happy_path_boot_and_restart_persists_generated_env() -> None:
     with (
-        TemporaryDirectory(prefix="infisical-aio-config-") as config_dir,
-        TemporaryDirectory(prefix="infisical-aio-data-") as data_dir,
+        docker_volume("infisical-aio-config") as config_volume,
+        docker_volume("infisical-aio-data") as data_volume,
     ):
-        with container(Path(config_dir), Path(data_dir)) as (name, host_port):
+        with container(config_volume, data_volume) as (name, host_port):
             wait_for_http(name, host_port)
-            generated_env = Path(config_dir, "aio", "generated.env")
-            assert generated_env.is_file()  # nosec B101
-            generated_contents = generated_env.read_text()
+            assert container_path_exists(
+                name, "/config/aio/generated.env"
+            )  # nosec B101
+            generated_contents = read_container_file(name, "/config/aio/generated.env")
             assert "AIO_MAILPIT_UI_USERNAME=" in generated_contents  # nosec B101
             assert "AIO_MAILPIT_UI_PASSWORD=" in generated_contents  # nosec B101
             first_logs = logs(name)
@@ -102,7 +104,9 @@ def test_happy_path_boot_and_restart_persists_generated_env() -> None:
 
             run_command(["docker", "restart", name])
             wait_for_http(name, host_port)
-            assert generated_env.is_file()  # nosec B101
-            second_contents = generated_env.read_text()
+            assert container_path_exists(
+                name, "/config/aio/generated.env"
+            )  # nosec B101
+            second_contents = read_container_file(name, "/config/aio/generated.env")
             assert "AIO_MAILPIT_UI_USERNAME=" in second_contents  # nosec B101
             assert "AIO_MAILPIT_UI_PASSWORD=" in second_contents  # nosec B101
