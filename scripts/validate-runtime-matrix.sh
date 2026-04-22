@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2310
 set -euo pipefail
 
 IMAGE_TAG="${1:-infisical-aio:test}"
@@ -259,8 +260,31 @@ wait_for_mailpit_message() {
 wait_for_infisical_ready() {
 	local container="$1"
 	local host_port="$2"
-	wait_for_log "${container}" "${READY_LOG}"
-	wait_for_http "http://127.0.0.1:${host_port}/api/status"
+	local url="http://127.0.0.1:${host_port}/api/status"
+	local deadline=$((SECONDS + HTTP_TIMEOUT_SECONDS))
+
+	while ((SECONDS < deadline)); do
+		local state
+		state="$(docker inspect -f '{{.State.Status}}' "${container}" 2>/dev/null || true)"
+		if [[ -n ${state} && ${state} != "running" ]]; then
+			fail "${container} stopped before becoming ready"
+		fi
+
+		if curl -fsS "${url}" >/dev/null 2>&1; then
+			return 0
+		fi
+
+		local logs
+		logs="$(docker logs "${container}" 2>&1 || true)"
+		if [[ ${logs} == *"${READY_LOG}"* ]]; then
+			wait_for_http "${url}"
+			return 0
+		fi
+
+		sleep "${POLL_SECONDS}"
+	done
+
+	fail "Timed out waiting for ${container} readiness via ${url}"
 }
 
 start_infisical() {
@@ -302,21 +326,19 @@ start_infisical() {
 
 start_external_mailpit() {
 	local container="$1"
-	local host_port
 
-	host_port="$(pick_free_port)"
+	STARTED_MAILPIT_PORT="$(pick_free_port)"
 	docker run -d \
 		--name "${container}" \
 		--network "${NETWORK_NAME}" \
-		-p "127.0.0.1:${host_port}:8025" \
+		-p "127.0.0.1:${STARTED_MAILPIT_PORT}:8025" \
 		"${EXTERNAL_MAILPIT_IMAGE}" \
 		--disable-wal \
 		--disable-version-check \
 		--block-remote-css-and-fonts \
 		--smtp-disable-rdns >/dev/null
 	register_container "${container}"
-	wait_for_http "http://127.0.0.1:${host_port}/api/v1/messages"
-	printf '%s\n' "${host_port}"
+	wait_for_http "http://127.0.0.1:${STARTED_MAILPIT_PORT}/api/v1/messages"
 }
 
 start_external_postgres() {
@@ -731,7 +753,8 @@ run_external_smtp_mode() {
 	local recovery_email="admin-smtp-${RUN_ID}@example.com"
 
 	echo "== external SMTP via Mailpit mode =="
-	external_mailpit_port="$(start_external_mailpit "${external_mailpit_container}")"
+	start_external_mailpit "${external_mailpit_container}"
+	external_mailpit_port="${STARTED_MAILPIT_PORT}"
 	start_infisical \
 		"${container}" \
 		"${config_dir}" \

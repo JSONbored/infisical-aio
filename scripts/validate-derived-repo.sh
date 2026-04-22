@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="${1:-.}"
 cd "${repo_root}"
-strict_placeholders="${STRICT_PLACEHOLDERS:-false}"
+strict_placeholders="${STRICT_PLACEHOLDERS:-${ENABLE_AIO_AUTOMATION:-false}}"
 
 fail() {
 	echo "template validation error: $*" >&2
@@ -23,16 +23,24 @@ require_absent() {
 check_no_placeholder() {
 	local pattern="$1"
 	shift
-	if rg -n --fixed-strings "${pattern}" "$@" >/dev/null 2>&1; then
+	local existing_paths=()
+	local path
+	for path in "$@"; do
+		[[ -e ${path} ]] && existing_paths+=("${path}")
+	done
+	[[ ${#existing_paths[@]} -gt 0 ]] || return 0
+	if rg -n --fixed-strings "${pattern}" "${existing_paths[@]}" >/dev/null 2>&1; then
 		fail "found unresolved placeholder '${pattern}' in: $*"
 	fi
 }
 
 require_file "Dockerfile"
 require_file "README.md"
-require_file "scripts/smoke-test.sh"
+require_file "pyproject.toml"
 require_file "scripts/ci_flags.py"
-require_file "scripts/test-ci-flags.py"
+require_file "tests/unit/test_ci_flags.py"
+require_file "tests/template/test_validate_template.py"
+require_file "tests/integration/test_container_runtime.py"
 require_file "scripts/validate-template.py"
 require_file "scripts/update-template-changes.py"
 require_file ".github/FUNDING.yml"
@@ -52,24 +60,23 @@ if [[ -z ${effective_template_xml} ]]; then
 	if [[ -f ${inferred_repo_xml} ]]; then
 		effective_template_xml="${inferred_repo_xml}"
 	else
-		root_xml_manifest="$(mktemp)"
-		if ! find . -maxdepth 1 -type f -name '*.xml' -print | sort >"${root_xml_manifest}"; then
-			rm -f "${root_xml_manifest}"
-			fail "unable to enumerate root XML files"
-		fi
-		mapfile -t root_xml_files <"${root_xml_manifest}"
-		rm -f "${root_xml_manifest}"
-		for idx in "${!root_xml_files[@]}"; do
-			root_xml_files[idx]="${root_xml_files[idx]#./}"
+		root_xml_files=()
+		shopt -s nullglob
+		for xml_path in ./*.xml; do
+			[[ -f ${xml_path} ]] || continue
+			root_xml_files+=("${xml_path#./}")
 		done
+		shopt -u nullglob
 		if [[ ${#root_xml_files[@]} -eq 1 ]]; then
 			effective_template_xml="${root_xml_files[0]}"
 		fi
 	fi
 fi
 
-if [[ -n ${effective_template_xml} ]]; then
+if [[ ${ENABLE_AIO_AUTOMATION-} == "true" ]]; then
+	[[ -n ${effective_template_xml} ]] || fail "ENABLE_AIO_AUTOMATION=true requires a root XML file"
 	require_file "${effective_template_xml}"
+	require_absent "template-aio.xml"
 fi
 
 xml_files=()
@@ -78,7 +85,7 @@ if [[ -n ${effective_template_xml} ]] && [[ -f ${effective_template_xml} ]]; the
 fi
 
 if [[ ${strict_placeholders} == "true" ]]; then
-	check_no_placeholder "ghcr.io/example/upstream-image:latest" "Dockerfile"
+	check_no_placeholder "Replace this starter base with the real upstream image once the derived repo is wired." "Dockerfile"
 	if [[ ${#xml_files[@]} -gt 0 ]]; then
 		check_no_placeholder "yourapp-aio" "${xml_files[@]}"
 		check_no_placeholder "Replace this overview with the real app description and first-run guidance." "${xml_files[@]}"
@@ -86,8 +93,7 @@ if [[ ${strict_placeholders} == "true" ]]; then
 		check_no_placeholder "Replace this with any real operational prerequisites or remove it." "${xml_files[@]}"
 		check_no_placeholder "https://github.com/JSONbored/yourapp-aio/releases" "${xml_files[@]}"
 	fi
-	check_no_placeholder "replace me with the app ready log line" "scripts/smoke-test.sh"
-	check_no_placeholder "Replace this starter service with the real app start command." rootfs/etc/services.d/app/run
+	check_no_placeholder "aio-template starter app" rootfs/etc/services.d/app/run rootfs/usr/local/bin/aio-template-app.py
 fi
 
 echo "Derived repo validation passed."
