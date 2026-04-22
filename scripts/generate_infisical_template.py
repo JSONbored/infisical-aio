@@ -180,6 +180,7 @@ def render_config(key: str) -> str:
 def fallback_changes() -> str:
     body = (
         "### 2026-04-20\n"
+        "- Generated from CHANGELOG.md during release preparation. Do not edit manually.\n"
         "- Initial public release has not been cut yet.\n"
         "- The source repo is validating the bundled PostgreSQL 16 + Redis 7 wrapper, "
         "local Mailpit inbox integration, first-run secret persistence, and the generated "
@@ -249,11 +250,13 @@ def render_changes() -> str:
     except ValueError:
         return fallback_changes()
 
-    lines: list[str] = [release_heading(version, CHANGELOG)]
+    lines: list[str] = [
+        release_heading(version, CHANGELOG),
+        "- Generated from CHANGELOG.md during release preparation. Do not edit manually.",
+    ]
     for line in notes.splitlines():
         stripped = line.rstrip()
         if not stripped:
-            lines.append("")
             continue
         if stripped.startswith("<!--") and stripped.endswith("-->"):
             continue
@@ -264,9 +267,11 @@ def render_changes() -> str:
         if stripped.startswith("## "):
             continue
         if stripped.startswith("### "):
+            continue
+        if stripped.startswith("- "):
             lines.append(stripped)
             continue
-        lines.append(stripped)
+        lines.append(f"- {stripped.lstrip('- ').strip()}")
     return html.escape("\n".join(lines).strip(), quote=False).replace("\n", "&#xD;\n")
 
 

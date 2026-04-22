@@ -1,12 +1,6 @@
 # infisical-aio
 
-<div align="center">
-
 ![infisical-aio](https://socialify.git.ci/JSONbored/infisical-aio/image?custom_description=Unraid+CA+AIO+template+and+Docker+image+for+Infisical%2C+a+self-hosted+secrets+manager+with+bundled+PostgreSQL%2C+Redis%2C+and+Mailpit+for+the+easiest+first+boot.&custom_language=Dockerfile&description=1&font=Raleway&forks=1&issues=1&language=1&logo=https%3A%2F%2Fraw.githubusercontent.com%2FJSONbored%2Finfisical-aio%2Fmain%2Fassets%2Fapp-icon.png&name=1&owner=1&pattern=Formal+Invitation&pulls=1&stargazers=1&theme=Light)
-
-</div>
-
----
 
 An Unraid-first, single-container deployment of [Infisical](https://github.com/Infisical/infisical) for people who want the easiest reliable self-hosted install without manually wiring PostgreSQL and Redis on day one.
 
@@ -87,25 +81,25 @@ See [docs/releases.md](docs/releases.md) for the release workflow details.
 
 ## Validation
 
-Local validation in this repo is built around:
-
-- XML validation for the audited template surface
-- shell and Python syntax checks
-- local Docker build and smoke coverage
-- a repeatable runtime matrix for bundled mode, bundled Mailpit auth and local message capture, manual secret overrides, bootstrap, restart persistence, external PostgreSQL via URI and upstream DB fields, external Redis via URL/Sentinel/Cluster, external SMTP with bundled Mailpit idling, private-CA `rediss://`, and Prometheus metrics exposure
-
-Run the source-repo-first checks before enabling automation:
+Required local validation is pytest-first:
 
 ```bash
-STRICT_PLACEHOLDERS=true bash scripts/validate-derived-repo.sh .
-python3 scripts/validate-template.py
-python3 scripts/generate_infisical_template.py --check
-docker build -t infisical-aio:test .
-bash scripts/smoke-test.sh infisical-aio:test
-bash scripts/validate-runtime-matrix.sh infisical-aio:test
+python3 -m venv .venv-local
+.venv-local/bin/pip install -r requirements-dev.txt
+.venv-local/bin/pytest tests/unit tests/template --junit-xml=reports/pytest-unit.xml -o junit_family=xunit1
+.venv-local/bin/pytest tests/integration -m integration --junit-xml=reports/pytest-integration.xml -o junit_family=xunit1
+trunk flakytests validate --junit-paths "reports/pytest-unit.xml,reports/pytest-integration.xml"
+trunk check --show-existing --all
 ```
 
-The runtime matrix asserts:
+The extended runtime matrix now lives behind an opt-in pytest marker so the deeper bundled-vs-external coverage still runs through the shared suite:
+
+```bash
+INFISICAL_ENABLE_RUNTIME_MATRIX=1 \
+.venv-local/bin/pytest tests/integration/test_runtime_matrix.py -m extended_integration
+```
+
+That manual proof helper covers:
 
 - bundled PostgreSQL + Redis boot cleanly
 - bundled Mailpit boots cleanly, requires UI auth, and verifies successfully as Infisical's default local SMTP target

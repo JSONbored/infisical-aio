@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 import xml.etree.ElementTree as ET  # nosec B405 - this validator reads a trusted local repository XML file only
 from pathlib import Path
@@ -16,6 +17,17 @@ REQUIRED_TEXT_FIELDS = (
     "TemplateURL",
     "Icon",
     "Changes",
+)
+
+GENERATED_CHANGELOG_NOTE = (
+    "Generated from CHANGELOG.md during release preparation. Do not edit manually."
+)
+GENERATED_CHANGELOG_BULLET = f"- {GENERATED_CHANGELOG_NOTE}"
+CHANGELOG_HEADER_PATTERN = re.compile(r"^### \d{4}-\d{2}-\d{2}$")
+LEGACY_CHANGELOG_MARKERS = (
+    "[b]Latest release[/b]",
+    "GitHub Releases",
+    "Full changelog and release notes:",
 )
 
 
@@ -42,6 +54,32 @@ def is_placeholder_template(xml_path: Path) -> bool:
 def fail(message: str) -> int:
     print(message, file=sys.stderr)
     return 1
+
+
+def validate_changes(xml_name: str, changes: str) -> int:
+    for marker in LEGACY_CHANGELOG_MARKERS:
+        if marker in changes:
+            return fail(
+                f"{xml_name} <Changes> still uses the legacy release-link format: {marker}"
+            )
+
+    lines = [line.strip() for line in changes.splitlines() if line.strip()]
+    if len(lines) < 3:
+        return fail(
+            f"{xml_name} <Changes> must include a date heading, the generated note, and at least one bullet"
+        )
+    if not CHANGELOG_HEADER_PATTERN.fullmatch(lines[0]):
+        return fail(f"{xml_name} <Changes> must start with '### YYYY-MM-DD'")
+    if lines[1] != GENERATED_CHANGELOG_BULLET:
+        return fail(
+            f"{xml_name} <Changes> second line should be '{GENERATED_CHANGELOG_BULLET}'"
+        )
+    invalid_lines = [line for line in lines[1:] if not line.startswith("- ")]
+    if invalid_lines:
+        return fail(
+            f"{xml_name} <Changes> must use bullet lines after the heading; found {invalid_lines[0]!r}"
+        )
+    return 0
 
 
 def main() -> int:
@@ -73,6 +111,9 @@ def main() -> int:
     changes = (root.findtext("Changes") or "").strip()
     if not changes:
         return fail(f"{xml_path.name} is missing a non-empty <Changes> field")
+    changes_status = validate_changes(xml_path.name, changes)
+    if changes_status:
+        return changes_status
 
     invalid_option_configs: list[str] = []
     invalid_pipe_configs: list[str] = []

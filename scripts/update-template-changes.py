@@ -9,7 +9,9 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_CHANGELOG = ROOT / "CHANGELOG.md"
-GIT_BIN = "/usr/bin/git"
+GENERATED_NOTE = (
+    "- Generated from CHANGELOG.md during release preparation. Do not edit manually."
+)
 
 
 def resolve_template_path() -> pathlib.Path:
@@ -66,12 +68,15 @@ def release_heading(version: str, changelog: pathlib.Path) -> str:
     return f"### {version}"
 
 
-def build_changes_body(version: str, notes: str, changelog: pathlib.Path) -> str:
-    lines: list[str] = [release_heading(version, changelog)]
+def build_changes_body(
+    version: str,
+    notes: str,
+    changelog: pathlib.Path,
+) -> str:
+    lines: list[str] = [release_heading(version, changelog), GENERATED_NOTE]
     for line in notes.splitlines():
-        stripped = line.rstrip()
+        stripped = line.strip()
         if not stripped:
-            lines.append("")
             continue
         if stripped.startswith("<!--") and stripped.endswith("-->"):
             continue
@@ -82,9 +87,15 @@ def build_changes_body(version: str, notes: str, changelog: pathlib.Path) -> str
         if stripped.startswith("## "):
             continue
         if stripped.startswith("### "):
-            lines.append(stripped)
             continue
-        lines.append(stripped)
+        if stripped.startswith(("- ", "* ")):
+            lines.append(f"- {stripped[2:].strip()}")
+            continue
+        lines.append(f"- {stripped}")
+
+    if len(lines) == 2:
+        raise SystemExit("Release notes did not produce any bullet lines for <Changes>")
+
     return "\n".join(lines).strip()
 
 

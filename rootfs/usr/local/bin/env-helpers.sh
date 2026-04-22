@@ -1,5 +1,6 @@
 #!/command/with-contenv bash
 # shellcheck shell=bash
+# shellcheck disable=SC2310,SC2312
 set -euo pipefail
 
 ENV_FILE="${AIO_ENV_FILE:-/config/aio/generated.env}"
