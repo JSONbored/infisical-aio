@@ -23,6 +23,8 @@ Create a ruleset for `main`:
 Suggested required checks:
 
 - `validate-template`
+- `unit-tests`
+- `integration-tests`
 - `pinned-actions`
 - `dependency-review`
 

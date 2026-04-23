@@ -3,52 +3,47 @@ name: Build AIO Image
 on:
   push:
     branches: [main]
-    tags:
-      - v*
     paths:
+      - CHANGELOG.md
       - Dockerfile
+      - cliff.toml
+      - pyproject.toml
+      - requirements-dev.txt
       - "*.xml"
       - assets/**
       - rootfs/**
       - scripts/**
+      - tests/**
+      - .trunk/**
       - upstream.toml
       - renovate.json
       - .github/workflows/**
   pull_request:
     branches: [main]
     paths:
+      - CHANGELOG.md
       - Dockerfile
+      - cliff.toml
+      - pyproject.toml
+      - requirements-dev.txt
       - "*.xml"
       - assets/**
       - rootfs/**
       - scripts/**
+      - tests/**
+      - .trunk/**
       - upstream.toml
       - renovate.json
       - .github/workflows/**
-  # checkov:skip=CKV_GHA_7: manual operators need bounded inputs to run smoke tests, publish images, and sync awesome-unraid on demand
   workflow_dispatch:
-    inputs:
-      run_smoke_test:
-        description: Run the smoke-test job
-        required: false
-        default: false
-        type: boolean
-      publish_images:
-        description: Publish image tags from the current ref
-        required: false
-        default: false
-        type: boolean
-      sync_awesome_unraid:
-        description: Open or refresh the awesome-unraid sync pull request
-        required: false
-        default: false
-        type: boolean
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   REGISTRY: ghcr.io
   IMAGE_NAME: jsonbored/infisical-aio
   PUBLISH_PLATFORMS: linux/amd64,linux/arm64
+  PYTHON_VERSION: "3.13"
+  TRUNK_ORG_URL_SLUG: aethereal
 
 permissions:
   contents: read
@@ -67,7 +62,8 @@ jobs:
       template_assets_related: ${{ steps.filter.outputs.template_assets_related }}
       renovate_related: ${{ steps.filter.outputs.renovate_related }}
       tooling_related: ${{ steps.filter.outputs.tooling_related }}
-      run_smoke_requested: ${{ steps.filter.outputs.run_smoke_requested }}
+      workflow_related: ${{ steps.filter.outputs.workflow_related }}
+      run_tests_requested: ${{ steps.filter.outputs.run_tests_requested }}
       publish_requested: ${{ steps.filter.outputs.publish_requested }}
     steps:
       - name: Checkout
@@ -84,20 +80,17 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           GITHUB_SHA_VALUE: ${{ github.sha }}
           GITHUB_REF_VALUE: ${{ github.ref }}
-          RUN_SMOKE_TEST_INPUT: ${{ github.event.inputs.run_smoke_test || '' }}
-          PUBLISH_IMAGES_INPUT: ${{ github.event.inputs.publish_images || '' }}
         run: |
           python3 scripts/ci_flags.py \
             --event-name "${EVENT_NAME}" \
-            --ref "${GITHUB_REF_VALUE}" \
-            --run-smoke-test-input "${RUN_SMOKE_TEST_INPUT}" \
-            --publish-images-input "${PUBLISH_IMAGES_INPUT}" >> "${GITHUB_OUTPUT}"
+            --ref "${GITHUB_REF_VALUE}" >> "${GITHUB_OUTPUT}"
 
           if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
             echo "build_related=true" >> "${GITHUB_OUTPUT}"
             echo "template_assets_related=true" >> "${GITHUB_OUTPUT}"
             echo "renovate_related=true" >> "${GITHUB_OUTPUT}"
             echo "tooling_related=true" >> "${GITHUB_OUTPUT}"
+            echo "workflow_related=true" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
@@ -115,6 +108,7 @@ jobs:
             echo "template_assets_related=true" >> "${GITHUB_OUTPUT}"
             echo "renovate_related=true" >> "${GITHUB_OUTPUT}"
             echo "tooling_related=true" >> "${GITHUB_OUTPUT}"
+            echo "workflow_related=true" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
@@ -125,6 +119,7 @@ jobs:
               echo "template_assets_related=true" >> "${GITHUB_OUTPUT}"
               echo "renovate_related=true" >> "${GITHUB_OUTPUT}"
               echo "tooling_related=true" >> "${GITHUB_OUTPUT}"
+              echo "workflow_related=true" >> "${GITHUB_OUTPUT}"
               exit 0
             fi
           else
@@ -134,6 +129,7 @@ jobs:
               echo "template_assets_related=true" >> "${GITHUB_OUTPUT}"
               echo "renovate_related=true" >> "${GITHUB_OUTPUT}"
               echo "tooling_related=true" >> "${GITHUB_OUTPUT}"
+              echo "workflow_related=true" >> "${GITHUB_OUTPUT}"
               exit 0
             fi
           fi
@@ -144,18 +140,23 @@ jobs:
           template_assets_related=false
           renovate_related=false
           tooling_related=false
+          workflow_related=false
 
           while IFS= read -r path; do
             [[ -z "${path}" ]] && continue
             case "${path}" in
-              Dockerfile|upstream.toml|rootfs/*)
+              Dockerfile|pyproject.toml|requirements-dev.txt|upstream.toml|rootfs/*|tests/*)
                 build_related=true
                 ;;
               *.xml|assets/*)
                 template_assets_related=true
                 ;;
-              scripts/*|.github/workflows/*)
+              CHANGELOG.md|cliff.toml|scripts/*|.trunk/*)
                 tooling_related=true
+                ;;
+              .github/workflows/*)
+                tooling_related=true
+                workflow_related=true
                 ;;
               renovate.json)
                 renovate_related=true
@@ -167,6 +168,7 @@ jobs:
           echo "template_assets_related=${template_assets_related}" >> "${GITHUB_OUTPUT}"
           echo "renovate_related=${renovate_related}" >> "${GITHUB_OUTPUT}"
           echo "tooling_related=${tooling_related}" >> "${GITHUB_OUTPUT}"
+          echo "workflow_related=${workflow_related}" >> "${GITHUB_OUTPUT}"
 
   validate-template:
     needs: detect-changes
@@ -181,46 +183,35 @@ jobs:
       - name: Validate shell and python scripts
         if: ${{ needs.detect-changes.outputs.build_related == 'true' || needs.detect-changes.outputs.tooling_related == 'true' }}
         run: |
-          bash -n scripts/smoke-test.sh
           bash -n scripts/validate-derived-repo.sh
           PYTHONPYCACHEPREFIX=/tmp/unraid-aio-template-pyc python3 -m py_compile scripts/ci_flags.py
           PYTHONPYCACHEPREFIX=/tmp/unraid-aio-template-pyc python3 -m py_compile scripts/check-upstream.py
-          PYTHONPYCACHEPREFIX=/tmp/unraid-aio-template-pyc python3 -m py_compile scripts/test-ci-flags.py
           PYTHONPYCACHEPREFIX=/tmp/unraid-aio-template-pyc python3 -m py_compile scripts/validate-template.py
           PYTHONPYCACHEPREFIX=/tmp/unraid-aio-template-pyc python3 -m py_compile scripts/update-template-changes.py
           PYTHONPYCACHEPREFIX=/tmp/unraid-aio-template-pyc python3 -m py_compile scripts/release.py
           find rootfs -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
           find rootfs -type f -path '*/run' -print0 | xargs -0 -n1 bash -n
 
-      - name: Validate CI flag resolver behavior
-        if: ${{ needs.detect-changes.outputs.build_related == 'true' || needs.detect-changes.outputs.tooling_related == 'true' }}
-        run: |
-          python3 scripts/test-ci-flags.py
-
-      - name: Validate XML
-        if: ${{ needs.detect-changes.outputs.build_related == 'true' || needs.detect-changes.outputs.template_assets_related == 'true' }}
-        run: |
-          python3 scripts/validate-template.py
-          python3 scripts/generate_infisical_template.py --check
-
-      - name: Validate derived repo placeholders
-        run: |
-          chmod +x scripts/validate-derived-repo.sh
-          ./scripts/validate-derived-repo.sh .
-
       - name: Validate Renovate config
         if: ${{ needs.detect-changes.outputs.renovate_related == 'true' }}
         run: npx --yes --package renovate renovate-config-validator renovate.json
 
   pinned-actions:
+    needs: detect-changes
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
+      - name: Skip when workflow files are unchanged
+        if: ${{ needs.detect-changes.outputs.workflow_related != 'true' }}
+        run: echo "Workflow files unchanged; skipping pinned action scan."
+
       - name: Checkout
+        if: ${{ needs.detect-changes.outputs.workflow_related == 'true' }}
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Enforce pinned action SHAs
+        if: ${{ needs.detect-changes.outputs.workflow_related == 'true' }}
         run: |
           python3 - <<'PY'
           import pathlib
@@ -259,8 +250,8 @@ jobs:
       - name: Dependency review
         uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
 
-  smoke-test:
-    if: ${{ needs.detect-changes.outputs.build_related == 'true' && needs.detect-changes.outputs.run_smoke_requested == 'true' }}
+  unit-tests:
+    if: ${{ needs.detect-changes.outputs.build_related == 'true' || needs.detect-changes.outputs.template_assets_related == 'true' || needs.detect-changes.outputs.tooling_related == 'true' }}
     needs:
       - detect-changes
       - validate-template
@@ -268,48 +259,134 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      TRUNK_API_TOKEN: ${{ secrets.TRUNK_API_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
 
+      - name: Install pytest
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Run pytest unit tests
+        id: unit_pytest
+        run: |
+          mkdir -p reports
+          rm -f reports/pytest-unit.xml
+          set +e
+          python -m pytest \
+            tests/unit \
+            tests/template \
+            --junit-xml=reports/pytest-unit.xml \
+            -o junit_family=xunit1
+          status=$?
+          echo "exit_code=${status}" >> "${GITHUB_OUTPUT}"
+          exit 0
+
+      - name: Upload unit test results to Trunk
+        if: ${{ always() && env.TRUNK_API_TOKEN != '' }}
+        continue-on-error: true
+        uses: trunk-io/analytics-uploader@95a0fb8b29e45b6068304261fb518644b426a803 # v2.0.8
+        env:
+          TRUNK_API_TOKEN: ${{ secrets.TRUNK_API_TOKEN }}
+        with:
+          junit-paths: reports/pytest-unit.xml
+          org-slug: ${{ env.TRUNK_ORG_URL_SLUG }}
+          token: ${{ env.TRUNK_API_TOKEN }}
+
+      - name: Fail if unit tests failed
+        if: ${{ steps.unit_pytest.outputs.exit_code != '0' }}
+        run: exit 1
+
+  integration-tests:
+    if: ${{ needs.detect-changes.outputs.run_tests_requested == 'true' && (needs.detect-changes.outputs.build_related == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect-changes.outputs.publish_requested == 'true')) }}
+    needs:
+      - detect-changes
+      - validate-template
+      - pinned-actions
+      - unit-tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      TRUNK_API_TOKEN: ${{ secrets.TRUNK_API_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
-
-      - name: Build local test image
+      - name: Prebuild pytest image
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
           context: .
           platforms: linux/amd64
           load: true
-          tags: infisical-aio:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: infisical-aio:pytest
+          cache-from: type=gha,scope=infisical-aio-pytest
+          cache-to: type=gha,mode=max,scope=infisical-aio-pytest
 
-      - name: Smoke test
-        run: |
-          chmod +x scripts/smoke-test.sh
-          export KEEP_SMOKE_ARTIFACTS=1
-          bash -x ./scripts/smoke-test.sh infisical-aio:ci
+      - name: Install pytest
+        run: python -m pip install -r requirements-dev.txt
 
-      - name: Dump smoke test diagnostics
-        if: failure()
+      - name: Run pytest integration tests
+        id: integration_pytest
+        env:
+          AIO_PYTEST_USE_PREBUILT_IMAGE: "true"
         run: |
-          echo "Active containers:"
+          mkdir -p reports
+          rm -f reports/pytest-integration.xml
+          set +e
+          python -m pytest \
+            tests/integration \
+            -m integration \
+            --junit-xml=reports/pytest-integration.xml \
+            -o junit_family=xunit1
+          status=$?
+          echo "exit_code=${status}" >> "${GITHUB_OUTPUT}"
+          exit 0
+
+      - name: Upload integration test results to Trunk
+        if: ${{ always() && env.TRUNK_API_TOKEN != '' }}
+        continue-on-error: true
+        uses: trunk-io/analytics-uploader@95a0fb8b29e45b6068304261fb518644b426a803 # v2.0.8
+        env:
+          TRUNK_API_TOKEN: ${{ secrets.TRUNK_API_TOKEN }}
+        with:
+          junit-paths: reports/pytest-integration.xml
+          org-slug: ${{ env.TRUNK_ORG_URL_SLUG }}
+          token: ${{ env.TRUNK_API_TOKEN }}
+
+      - name: Dump Docker diagnostics
+        if: ${{ failure() || (steps.integration_pytest.conclusion == 'success' && steps.integration_pytest.outputs.exit_code != '0') }}
+        run: |
           docker ps -a
           echo
-          echo "Inspecting smoke container:"
-          docker inspect "${CONTAINER_NAME:-infisical-aio-smoke}" || true
-          echo
-          echo "Container logs:"
-          docker logs "${CONTAINER_NAME:-infisical-aio-smoke}" || true
+          docker images
+
+      - name: Fail if integration tests failed
+        if: ${{ steps.integration_pytest.outputs.exit_code != '0' }}
+        run: exit 1
 
   publish:
-    if: ${{ needs.detect-changes.outputs.build_related == 'true' && github.event_name != 'pull_request' && needs.detect-changes.outputs.publish_requested == 'true' }}
+    if: ${{ (needs.detect-changes.outputs.build_related == 'true' || needs.detect-changes.outputs.template_assets_related == 'true') && vars.ENABLE_AIO_AUTOMATION == 'true' && github.event_name == 'push' && needs.detect-changes.outputs.publish_requested == 'true' && needs.integration-tests.result == 'success' }}
     needs:
       - detect-changes
       - validate-template
       - pinned-actions
-      - smoke-test
+      - unit-tests
+      - integration-tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -386,20 +463,7 @@ jobs:
             echo "upstream_version=${upstream_version}"
             echo "release_package_tag=${release_package_tag}"
             echo "tags<<EOF"
-            if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-              version="${GITHUB_REF#refs/tags/}"
-              version_no_v="${version#v}"
-              IFS='.' read -r major minor patch <<< "${version_no_v}"
-              echo "${image_ghcr}:${version}"
-              if [[ -n "${major:-}" ]]; then
-                echo "${image_ghcr}:v${major}"
-              fi
-              if [[ -n "${major:-}" && -n "${minor:-}" ]]; then
-                echo "${image_ghcr}:v${major}.${minor}"
-              fi
-            else
-              echo "${image_ghcr}:latest"
-            fi
+            echo "${image_ghcr}:latest"
             if [[ -n "${upstream_version}" ]]; then
               echo "${image_ghcr}:${upstream_version}"
               echo "${image_ghcr}:${release_package_tag}"
@@ -407,20 +471,7 @@ jobs:
             echo "${sha_tag_ghcr}"
 
             if [[ "${DOCKERHUB_ENABLED}" == "true" ]]; then
-              if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-                version="${GITHUB_REF#refs/tags/}"
-                version_no_v="${version#v}"
-                IFS='.' read -r major minor patch <<< "${version_no_v}"
-                echo "${image_dockerhub}:${version}"
-                if [[ -n "${major:-}" ]]; then
-                  echo "${image_dockerhub}:v${major}"
-                fi
-                if [[ -n "${major:-}" && -n "${minor:-}" ]]; then
-                  echo "${image_dockerhub}:v${major}.${minor}"
-                fi
-              else
-                echo "${image_dockerhub}:latest"
-              fi
+              echo "${image_dockerhub}:latest"
               if [[ -n "${upstream_version}" ]]; then
                 echo "${image_dockerhub}:${upstream_version}"
                 echo "${image_dockerhub}:${release_package_tag}"
@@ -436,8 +487,8 @@ jobs:
           context: .
           platforms: ${{ env.PUBLISH_PLATFORMS }}
           push: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=infisical-aio-publish
+          cache-to: type=gha,mode=max,scope=infisical-aio-publish
           tags: ${{ steps.prep.outputs.tags }}
           labels: |
             org.opencontainers.image.source=https://github.com/JSONbored/infisical-aio
@@ -452,7 +503,7 @@ jobs:
             io.jsonbored.wrapper.version=${{ steps.prep.outputs.release_package_tag || '' }}
 
   sync-awesome-unraid:
-    if: ${{ needs.detect-changes.outputs.template_assets_related == 'true' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.sync_awesome_unraid == 'true')) }}
+    if: ${{ needs.detect-changes.outputs.template_assets_related == 'true' && vars.ENABLE_AIO_AUTOMATION == 'true' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
     needs:
       - detect-changes
       - validate-template
