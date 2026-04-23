@@ -17,7 +17,6 @@ concurrency:
 
 jobs:
   check-upstream:
-    if: ${{ vars.ENABLE_AIO_AUTOMATION == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

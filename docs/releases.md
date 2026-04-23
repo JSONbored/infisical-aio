@@ -21,8 +21,9 @@ When Docker Hub credentials are configured, the same tag set is pushed to Docker
 
 ## Release Flow
 
-1. Trigger **Release / Template** from `main` with `action=prepare`.
-2. The workflow computes the next `upstream-aio.N` version and opens a release PR.
+1. Trigger **Prepare Release / Infisical-AIO** from `main`.
+2. The workflow computes the next `upstream-aio.N` version, updates `CHANGELOG.md`, syncs the XML `<Changes>` block, and opens a release PR.
 3. Review and merge that PR into `main`.
-4. Trigger **Release / Template** from `main` again with `action=publish`.
-5. The workflow reads the merged `CHANGELOG.md` entry, syncs the XML `<Changes>` block, creates the Git tag, and publishes the GitHub Release.
+4. Wait for the `CI / Infisical-AIO` run on the release commit to finish green. That same `main` push also publishes the updated package tags automatically.
+5. Trigger **Publish Release / Infisical-AIO** from `main`.
+6. The workflow verifies CI on the exact release commit, creates the Git tag if needed, and publishes the GitHub Release.
