@@ -3,6 +3,7 @@
 set -euo pipefail
 
 IMAGE_TAG="${1:-infisical-aio:test}"
+MATRIX_MODE="${2:-all}"
 READY_LOG="${READY_LOG:-[infisical-aio] Infisical API is ready}"
 HTTP_TIMEOUT_SECONDS="${HTTP_TIMEOUT_SECONDS:-300}"
 START_TIMEOUT_SECONDS="${START_TIMEOUT_SECONDS:-300}"
@@ -813,20 +814,60 @@ main() {
 	docker image inspect "${IMAGE_TAG}" >/dev/null 2>&1 || fail "Docker image ${IMAGE_TAG} does not exist. Build it first."
 	docker network create "${NETWORK_NAME}" >/dev/null
 
-	run_bundled_mode
-	run_manual_secret_override_mode
-	run_bootstrap_mode
-	run_external_postgres_uri_mode
-	run_external_postgres_field_mode
-	run_external_redis_url_mode
-	run_external_redis_sentinel_mode
-	run_external_redis_cluster_mode
-	run_tls_private_ca_redis_mode
-	run_external_smtp_mode
-	run_metrics_mode
+	case "${MATRIX_MODE}" in
+	all)
+		run_bundled_mode
+		run_manual_secret_override_mode
+		run_bootstrap_mode
+		run_external_postgres_uri_mode
+		run_external_postgres_field_mode
+		run_external_redis_url_mode
+		run_external_redis_sentinel_mode
+		run_external_redis_cluster_mode
+		run_tls_private_ca_redis_mode
+		run_external_smtp_mode
+		run_metrics_mode
+		;;
+	bundled)
+		run_bundled_mode
+		;;
+	manual-secret-overrides)
+		run_manual_secret_override_mode
+		;;
+	bootstrap)
+		run_bootstrap_mode
+		;;
+	external-postgres-uri)
+		run_external_postgres_uri_mode
+		;;
+	external-postgres-fields)
+		run_external_postgres_field_mode
+		;;
+	external-redis-url)
+		run_external_redis_url_mode
+		;;
+	external-redis-sentinel)
+		run_external_redis_sentinel_mode
+		;;
+	external-redis-cluster)
+		run_external_redis_cluster_mode
+		;;
+	redis-tls-private-ca)
+		run_tls_private_ca_redis_mode
+		;;
+	external-smtp)
+		run_external_smtp_mode
+		;;
+	metrics)
+		run_metrics_mode
+		;;
+	*)
+		fail "Unknown runtime matrix mode: ${MATRIX_MODE}"
+		;;
+	esac
 
 	echo
-	echo "Runtime matrix passed for ${IMAGE_TAG}"
+	echo "Runtime matrix ${MATRIX_MODE} passed for ${IMAGE_TAG}"
 }
 
 main "$@"
