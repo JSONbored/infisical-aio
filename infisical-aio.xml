@@ -32,21 +32,29 @@
 - The bundled Mailpit inbox is for local or lab use. It is not a production mail relay and should not be confused with real deliverability infrastructure.&#xD;
 - [code]SITE_URL[/code] matters. If you set it wrong, browser flows, links, email behavior, and some integrations will break in subtle ways.&#xD;
 - If you enable automatic bootstrap, you are creating a highly privileged instance-admin identity during first boot. Treat those credentials carefully.</Overview>
-  <Changes>### 2026-04-21&#xD;
+  <Changes>### 2026-04-25&#xD;
 - Generated from CHANGELOG.md during release preparation. Do not edit manually.&#xD;
-- Add banner star history and security metadata by @JSONbored&#xD;
-- Expose metrics port and CA cert knob by @JSONbored&#xD;
-- Pin bundled database and redis support line by @JSONbored&#xD;
-- Harden infisical aio runtime and tooling by @JSONbored&#xD;
-- Tighten redis package version selection by @JSONbored&#xD;
-- Correct qemu action pin by @JSONbored&#xD;
-- Initial commit by @JSONbored&#xD;
-- Harden Infisical AIO template and container packaging by @JSONbored&#xD;
-- Use `Reinforce Infisical AIO runtime and template checks` by @JSONbored&#xD;
-- Improve build pipeline and README by @JSONbored&#xD;
-- Merge branch 'main' into codex/initial-scaffold by @JSONbored&#xD;
-- Merge branch 'main' into codex/audit-env-surface-and-validation by @JSONbored&#xD;
-- @JSONbored made their first contribution in [#3](https://github.com/JSONbored/infisical-aio/pull/3)</Changes>
+- Optimize pytest gating and Trunk uploads by @JSONbored&#xD;
+- Preserve changelog history and publish release commits by @JSONbored&#xD;
+- Capture integration diagnostics on pytest failure by @JSONbored&#xD;
+- Remove automation flag and align publish flow by @JSONbored&#xD;
+- Centralize trunk config and gate release tags by @JSONbored&#xD;
+- Accept squash release titles by @JSONbored&#xD;
+- Pin package tags to release targets by @JSONbored&#xD;
+- Fetch history for release tag lookup by @JSONbored&#xD;
+- Consolidate pytest workflow steps by @JSONbored&#xD;
+- Update pytest and trunk analytics uploader by @JSONbored&#xD;
+- Derive template changes from changelog by @JSONbored&#xD;
+- Add security category to infisical xml by @JSONbored&#xD;
+- Make derived repo validator portable by @JSONbored&#xD;
+- Use workflow file selector for CI checks by @JSONbored&#xD;
+- Classify local action changes by @JSONbored&#xD;
+- Fail fast on init errors by @JSONbored&#xD;
+- Refactor CI and release automation for pytest validation by @JSONbored&#xD;
+- Merge branch 'main' into codex/release-target-immutability by @JSONbored&#xD;
+- Use docker volumes for runtime persistence by @JSONbored&#xD;
+- Cover action and container contracts by @JSONbored&#xD;
+- Split extended matrix cases by @JSONbored</Changes>
   <Category>Network:Security Security Tools:Utilities</Category>
   <WebUI>http://[IP]:[PORT:8080]</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/infisical-aio.xml</TemplateURL>
