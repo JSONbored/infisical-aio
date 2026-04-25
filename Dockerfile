@@ -74,6 +74,7 @@ VOLUME ["/config", "/data"]
 EXPOSE 8080 8025 9464
 
 ENV S6_CMD_WAIT_FOR_SERVICES_MAXTIME=300000
+ENV S6_BEHAVIOUR_IF_STAGE2_FAILS=2
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
   CMD curl -fsS http://127.0.0.1:8080/api/status >/dev/null || exit 1
