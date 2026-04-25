@@ -1,6 +1,42 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [v0.159.16-aio.2](https://github.com/JSONbored/infisical-aio/releases/tag/v0.159.16-aio.2) - 2026-04-25
+### CI
+- Optimize pytest gating and Trunk uploads by @JSONbored
+- Preserve changelog history and publish release commits by @JSONbored
+- Capture integration diagnostics on pytest failure by @JSONbored
+- Remove automation flag and align publish flow by @JSONbored
+- Centralize trunk config and gate release tags by @JSONbored
+- Accept squash release titles by @JSONbored
+- Pin package tags to release targets by @JSONbored
+- Fetch history for release tag lookup by @JSONbored
+- Consolidate pytest workflow steps by @JSONbored
+
+
+### Dependency Updates
+- Update pytest and trunk analytics uploader by @JSONbored
+
+
+### Fixes
+- Derive template changes from changelog by @JSONbored
+- Add security category to infisical xml by @JSONbored
+- Make derived repo validator portable by @JSONbored
+- Use workflow file selector for CI checks by @JSONbored
+- Classify local action changes by @JSONbored
+- Fail fast on init errors by @JSONbored
+
+
+### Other Changes
+- Refactor CI and release automation for pytest validation by @JSONbored
+- Merge branch 'main' into codex/release-target-immutability by @JSONbored
+
+
+### Tests
+- Use docker volumes for runtime persistence by @JSONbored
+- Cover action and container contracts by @JSONbored
+- Split extended matrix cases by @JSONbored
+
 
 ## [v0.159.16-aio.1](https://github.com/JSONbored/infisical-aio/releases/tag/v0.159.16-aio.1) - 2026-04-21
 
