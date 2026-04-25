@@ -14,6 +14,16 @@ AIO_TAG_PATTERN = "*-aio.*"
 GIT_BIN = "/usr/bin/git"
 
 
+def git_output(*args: str) -> str:
+    return subprocess.check_output([GIT_BIN, *args], cwd=ROOT, text=True)  # nosec B603
+
+
+def git_completed(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [GIT_BIN, *args], cwd=ROOT, text=True, capture_output=True, check=False
+    )  # nosec B603
+
+
 def load_upstream_version_key(path: pathlib.Path) -> str:
     in_upstream = False
     pattern = re.compile(r'^version_key\s*=\s*"([^"]+)"\s*$')
@@ -148,9 +158,7 @@ def find_release_commit(version: str) -> str:
     exact = f"chore(release): {version}"
     with_suffix = re.compile(rf"^{re.escape(exact)} \(#\d+\)$")
 
-    output = subprocess.check_output(
-        [GIT_BIN, "log", "--format=%H\t%s", "HEAD"], cwd=ROOT, text=True  # nosec B603
-    )
+    output = git_output("log", "--format=%H\t%s", "HEAD")
     for line in output.splitlines():
         if not line.strip():
             continue
@@ -162,6 +170,35 @@ def find_release_commit(version: str) -> str:
         f"Unable to find a merged release commit for {version} on main. "
         f"Expected '{exact}' or '{exact} (#123)'."
     )
+
+
+def git_is_ancestor(ancestor: str, descendant: str) -> bool:
+    return (
+        git_completed("merge-base", "--is-ancestor", ancestor, descendant).returncode
+        == 0
+    )
+
+
+def find_release_target_commit(version: str) -> str:
+    release_commit = find_release_commit(version)
+    head = git_output("rev-parse", "HEAD").strip()
+
+    if release_commit == head:
+        return release_commit
+
+    if not git_is_ancestor(release_commit, head):
+        raise SystemExit(
+            f"Release commit {release_commit} for {version} is not reachable from HEAD."
+        )
+
+    first_parent_commits = git_output(
+        "rev-list", "--first-parent", "--reverse", "HEAD"
+    ).splitlines()
+    for candidate in first_parent_commits:
+        if git_is_ancestor(release_commit, candidate):
+            return candidate
+
+    return release_commit
 
 
 def main() -> None:
@@ -214,6 +251,8 @@ def main() -> None:
 
     commit_parser = subparsers.add_parser("find-release-commit")
     commit_parser.add_argument("version")
+    target_parser = subparsers.add_parser("find-release-target-commit")
+    target_parser.add_argument("version")
 
     args = parser.parse_args()
     if args.command == "upstream-version":
@@ -238,6 +277,8 @@ def main() -> None:
         print(latest_changelog_version(args.changelog))
     elif args.command == "find-release-commit":
         print(find_release_commit(args.version))
+    elif args.command == "find-release-target-commit":
+        print(find_release_target_commit(args.version))
     else:
         print(extract_release_notes(args.version, args.changelog))
 
