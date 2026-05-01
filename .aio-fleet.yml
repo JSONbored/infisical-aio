@@ -1,0 +1,33 @@
+schema_version: 1
+repo: infisical-aio
+github_repo: JSONbored/infisical-aio
+app_slug: infisical-aio
+image:
+  name: jsonbored/infisical-aio
+  cache_scope: infisical-aio-image
+  pytest_tag: infisical-aio:pytest
+  publish_platforms: linux/amd64,linux/arm64
+release:
+  name: Infisical-AIO
+  profile: changelog-version
+  previous_tag_command: latest-aio-tag
+upstream:
+  name: Infisical
+  digest_arg: UPSTREAM_IMAGE_DIGEST
+template:
+  xml_paths:
+  - '*.xml'
+  - assets/**
+  generated: true
+  generator_check_command: python3 scripts/generate_infisical_template.py --check
+catalog:
+  published: true
+  assets:
+  - source: infisical-aio.xml
+    target: infisical-aio.xml
+  - source: assets/app-icon.png
+    target: icons/infisical.png
+tests:
+  unit: tests/unit tests/template
+  integration: tests/integration -m integration
+  checkout_submodules: false
