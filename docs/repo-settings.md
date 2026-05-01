@@ -22,11 +22,7 @@ Create a ruleset for `main`:
 
 Suggested required checks:
 
-- `validate-template`
-- `unit-tests`
-- `integration-tests`
-- `pinned-actions`
-- `dependency-review`
+- `aio-fleet / required`
 
 ## Security
 
@@ -34,10 +30,8 @@ Suggested required checks:
 - enable private vulnerability reporting and keep `SECURITY.md` aligned with the live reporting path
 - enable secret scanning
 - enable push protection
-- use Renovate for update PRs instead of Dependabot update PRs
+- keep shared dependency and upstream policy in `aio-fleet`
 
 ## Secrets and Variables
 
-Required secret:
-
-- `SYNC_TOKEN`
+App repos should not carry repo-local workflow secrets for shared automation. Configure the GitHub App, Docker Hub credentials, and GHCR token in `aio-fleet`; keep app-local secrets only when the runtime itself needs them.
