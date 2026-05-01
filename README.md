@@ -74,8 +74,8 @@ Additional advanced wrapper-specific knobs worth knowing about:
 - The repo monitors upstream releases through [upstream.toml](upstream.toml) and [scripts/check-upstream.py](scripts/check-upstream.py).
 - Release notes are generated with `git-cliff`.
 - The Unraid template `<Changes>` block is synced from `CHANGELOG.md` during release preparation.
-- `main` publishes `latest`, the pinned upstream version tag, the explicit AIO package tag, and `sha-<commit>` to GHCR.
-- When Docker Hub credentials are configured, the same publish flow pushes matching tags to Docker Hub in parallel.
+- `main` publishes `latest`, the pinned upstream version tag, the explicit AIO package tag, and `sha-<commit>` to Docker Hub.
+- Publish jobs require Docker Hub credentials.
 
 See [docs/releases.md](docs/releases.md) for the release workflow details.
 
