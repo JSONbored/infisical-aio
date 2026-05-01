@@ -9,16 +9,16 @@
 - run `python3 scripts/generate_infisical_template.py`
 - run `pytest tests/unit tests/template --junit-xml=reports/pytest-unit.xml -o junit_family=xunit1` locally
 - run `pytest tests/integration -m integration --junit-xml=reports/pytest-integration.xml -o junit_family=xunit1` locally
-- run `trunk flakytests validate --junit-paths "reports/pytest-unit.xml,reports/pytest-integration.xml"`
-- run `trunk check --show-existing --all`
+- from `aio-fleet`, run `python -m aio_fleet validate --repo infisical-aio`
+- from `aio-fleet`, run `python -m aio_fleet control-check --repo infisical-aio --sha <sha> --event pull_request`
 - optionally run `INFISICAL_ENABLE_RUNTIME_MATRIX=1 pytest tests/integration/test_runtime_matrix.py -m extended_integration` for deeper bundled-vs-external proof
 
 ## Before Enabling Actions
 
-- add `SYNC_TOKEN`
-- confirm Renovate is installed for the repo
+- confirm the `aio-fleet` GitHub App is installed on this repo and `awesome-unraid`
+- confirm shared dependency/upstream automation is represented in `aio-fleet`
 - verify branch protection and secret scanning are enabled
-- confirm `validate-template`, `unit-tests`, and `integration-tests` pass on PRs before expecting image publish from `main`
+- confirm `aio-fleet / required` passes before expecting central publish from `main`
 
 ## Before Unraid Submission
 
