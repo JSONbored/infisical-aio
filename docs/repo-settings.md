@@ -6,7 +6,7 @@ Apply these before pushing `infisical-aio` fully public.
 
 - keep the repo private until the image, docs, and Actions are validated
 - set a clear About description and relevant GitHub topics
-- make the GHCR package public only after the first successful publish
+- confirm the Docker Hub repository is public and pullable after the first successful publish
 
 ## Branch Protection
 

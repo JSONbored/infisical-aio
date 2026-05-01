@@ -26,6 +26,6 @@
 - verify first boot works with bundled PostgreSQL and Redis defaults
 - verify external PostgreSQL and Redis overrides work
 - verify generated credentials persist across restarts
-- confirm GHCR package is public and pullable
+- confirm the Docker Hub image is public and pullable
 - confirm `awesome-unraid` contains the XML and icon
 - confirm the README first-run notes match the real install behavior
