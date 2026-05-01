@@ -7,7 +7,7 @@
 - confirm `Support`, `Project`, `TemplateURL`, and `Icon` URLs are correct
 - confirm the pinned upstream version and digest match the latest stable Infisical release you intend to ship
 - run `python3 scripts/generate_infisical_template.py`
-- run `pytest tests/unit tests/template --junit-xml=reports/pytest-unit.xml -o junit_family=xunit1` locally
+- run `pytest tests/template --junit-xml=reports/pytest-unit.xml -o junit_family=xunit1` locally
 - run `pytest tests/integration -m integration --junit-xml=reports/pytest-integration.xml -o junit_family=xunit1` locally
 - from `aio-fleet`, run `python -m aio_fleet validate --repo infisical-aio`
 - from `aio-fleet`, run `python -m aio_fleet control-check --repo infisical-aio --sha <sha> --event pull_request`
