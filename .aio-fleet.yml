@@ -15,6 +15,34 @@ upstream:
   name: Infisical
   version_key: UPSTREAM_VERSION
   digest_arg: UPSTREAM_IMAGE_DIGEST
+  commit_paths:
+    - Dockerfile
+    - infisical-aio.xml
+  monitor:
+    - component: aio
+      name: Infisical
+      source: github-releases
+      repo: Infisical/infisical
+      image: infisical/infisical
+      digest_source: dockerhub
+      dockerfile: Dockerfile
+      version_key: UPSTREAM_VERSION
+      digest_key: UPSTREAM_IMAGE_DIGEST
+      stable_only: true
+      strategy: pr
+      release_notes_url: https://github.com/Infisical/infisical/releases
+    - component: mailpit
+      name: Mailpit
+      source: github-releases
+      repo: axllent/mailpit
+      image: axllent/mailpit
+      digest_source: dockerhub
+      dockerfile: Dockerfile
+      version_key: MAILPIT_VERSION
+      digest_key: MAILPIT_IMAGE_DIGEST
+      stable_only: true
+      strategy: pr
+      release_notes_url: https://github.com/axllent/mailpit/releases
 template:
   xml_paths:
     - "*.xml"
