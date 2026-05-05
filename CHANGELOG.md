@@ -2,71 +2,125 @@
 
 All notable changes to this project will be documented in this file.
 
-## [v0.159.16-aio.2](https://github.com/JSONbored/infisical-aio/releases/tag/v0.159.16-aio.2) - 2026-04-25
+## v0.159.25-aio.1 - 2026-05-05
+
+### Build
+
+- Harden apt package installs
 
 ### CI
 
-- Optimize pytest gating and Trunk uploads by @JSONbored
-- Preserve changelog history and publish release commits by @JSONbored
-- Capture integration diagnostics on pytest failure by @JSONbored
-- Remove automation flag and align publish flow by @JSONbored
-- Centralize trunk config and gate release tags by @JSONbored
-- Accept squash release titles by @JSONbored
-- Pin package tags to release targets by @JSONbored
-- Fetch history for release tag lookup by @JSONbored
-- Consolidate pytest workflow steps by @JSONbored
+- Use shared AIO build workflow
+- Centralize release workflows
+- Repin shared workflow ref
+- Centralize workflow drift checks
+- Repin caller workflows
+- Pin shared validation policy
+- Use shared AIO workflows
+- Sync workflow path filters
+- Sync catalog publication state
+- Pin publish helper workflow fix
+- Pin next-wave aio-fleet workflows
+- Pin Docker Hub primary workflow
+- Pin control-plane workflow foundation
 
 ### Dependency Updates
 
-- Update pytest and trunk analytics uploader by @JSONbored
-
-### Fixes
-
-- Derive template changes from changelog by @JSONbored
-- Add security category to infisical xml by @JSONbored
-- Make derived repo validator portable by @JSONbored
-- Use workflow file selector for CI checks by @JSONbored
-- Classify local action changes by @JSONbored
-- Fail fast on init errors by @JSONbored
-
-### Other Changes
-
-- Refactor CI and release automation for pytest validation by @JSONbored
-- Merge branch 'main' into codex/release-target-immutability by @JSONbored
-
-### Tests
-
-- Use docker volumes for runtime persistence by @JSONbored
-- Cover action and container contracts by @JSONbored
-- Split extended matrix cases by @JSONbored
-
-## [v0.159.16-aio.1](https://github.com/JSONbored/infisical-aio/releases/tag/v0.159.16-aio.1) - 2026-04-21
+- Bump Infisical to v0.159.22
 
 ### Documentation
 
-- Add banner star history and security metadata by @JSONbored
+- Document central app test dependencies
 
 ### Features
 
-- Expose metrics port and CA cert knob by @JSONbored
+- Expose manual publish targets
 
 ### Fixes
 
-- Pin bundled database and redis support line by @JSONbored
-- Harden infisical aio runtime and tooling by @JSONbored
-- Tighten redis package version selection by @JSONbored
-- Correct qemu action pin by @JSONbored
+- Sync shared validation and trunk cleanup
+- Sync release shim path fallback
+
+### Maintenance
+
+- Sync shared repository boilerplate
+- Move shared automation to aio-fleet
+- Declare aio-fleet ownership
+- Bump infisical to v0.159.25
+
+### Refactors
+
+- Use shared derived repo validation
+- Use shared release helper shim
+- Remove legacy shared contract tests
+
+### Tests
+
+- Repin workflow expectation
+- Run shared metadata validation
+
+## v0.159.16-aio.2 - 2026-04-25
+
+### CI
+
+- Optimize pytest gating and Trunk uploads
+- Preserve changelog history and publish release commits
+- Capture integration diagnostics on pytest failure
+- Remove automation flag and align publish flow
+- Centralize trunk config and gate release tags
+- Accept squash release titles
+- Pin package tags to release targets
+- Fetch history for release tag lookup
+- Consolidate pytest workflow steps
+
+### Dependency Updates
+
+- Update pytest and trunk analytics uploader
+
+### Fixes
+
+- Derive template changes from changelog
+- Add security category to infisical xml
+- Make derived repo validator portable
+- Use workflow file selector for CI checks
+- Classify local action changes
+- Fail fast on init errors
 
 ### Other Changes
 
-- Initial commit by @JSONbored
-- Harden Infisical AIO template and container packaging by @JSONbored
-- Use `Reinforce Infisical AIO runtime and template checks` by @JSONbored
-- Improve build pipeline and README by @JSONbored
-- Merge branch 'main' into codex/initial-scaffold by @JSONbored
-- Merge branch 'main' into codex/audit-env-surface-and-validation by @JSONbored
+- Refactor CI and release automation for pytest validation
+- Merge branch 'main' into codex/release-target-immutability
 
-### New Contributors
+### Tests
 
-- @JSONbored made their first contribution in [#3](https://github.com/JSONbored/infisical-aio/pull/3)
+- Use docker volumes for runtime persistence
+- Cover action and container contracts
+- Split extended matrix cases
+
+## v0.159.16-aio.1 - 2026-04-21
+
+### Documentation
+
+- Add banner star history and security metadata
+
+### Features
+
+- Expose metrics port and CA cert knob
+
+### Fixes
+
+- Pin bundled database and redis support line
+- Harden infisical aio runtime and tooling
+- Tighten redis package version selection
+- Correct qemu action pin
+
+### Other Changes
+
+- Initial commit
+- Harden Infisical AIO template and container packaging
+- Use `Reinforce Infisical AIO runtime and template checks`
+- Improve build pipeline and README
+- Merge branch 'main' into codex/initial-scaffold
+- Merge branch 'main' into codex/audit-env-surface-and-validation
+
 <!-- generated by git-cliff -->
