@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.159.28-aio.1 - 2026-05-17
+
+### Maintenance
+
+- Update upstream pins for infisical-aio (#46)
+
 ## v0.159.25-aio.1 - 2026-05-05
 
 ### Build
