@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.160.4-aio.1 - 2026-05-21
+
+### Dependency Updates
+
+- Bump infisical to v0.160.4
+
 ## v0.160.3-aio.2 - 2026-05-21
 
 ### Fixes
