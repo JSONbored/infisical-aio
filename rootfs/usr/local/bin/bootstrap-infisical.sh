@@ -57,11 +57,10 @@ if [[ ${http_code} == "200" ]]; then
 fi
 
 if grep -qi "already bootstrapped" "${tmp_response}"; then
-	echo "[infisical-aio] Instance was already bootstrapped. Marking bootstrap as complete."
-	touch "${BOOTSTRAP_MARKER}"
-	chmod 600 "${BOOTSTRAP_MARKER}"
+	echo "[infisical-aio] Instance is already bootstrapped before configured AIO_BOOTSTRAP_* credentials were applied."
+	echo "[infisical-aio] Refusing to mark bootstrap complete; verify initial admin ownership and remove unexpected bootstrap state before retrying." >&2
 	rm -f "${tmp_response}"
-	exit 0
+	exit 1
 fi
 
 echo "[infisical-aio] Bootstrap request failed with HTTP ${http_code}."
