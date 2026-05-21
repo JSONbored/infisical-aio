@@ -17,6 +17,18 @@ chown -R postgres:postgres /data/postgres /run/postgresql
 chmod 700 /data/postgres
 
 if [[ -f /data/postgres/PG_VERSION ]]; then
+	DATA_MAJOR="$(tr -d '[:space:]' </data/postgres/PG_VERSION)"
+	PG_BIN_DIR="$(find /usr/lib/postgresql -mindepth 2 -maxdepth 2 -type d -name bin | sort | head -n 1)"
+	if [[ -z ${PG_BIN_DIR} ]]; then
+		echo "Unable to locate PostgreSQL binaries under /usr/lib/postgresql." >&2
+		exit 1
+	fi
+	BIN_MAJOR="$(basename "$(dirname "${PG_BIN_DIR}")")"
+	if [[ ${DATA_MAJOR} != "${BIN_MAJOR}" ]]; then
+		echo "[infisical-aio] Existing PostgreSQL data directory major (${DATA_MAJOR}) does not match bundled PostgreSQL major (${BIN_MAJOR})." >&2
+		echo "[infisical-aio] Please migrate your PostgreSQL data before upgrading (for example with pg_upgrade or dump/restore)." >&2
+		exit 1
+	fi
 	echo "[infisical-aio] Internal PostgreSQL cluster already initialized."
 	exit 0
 fi

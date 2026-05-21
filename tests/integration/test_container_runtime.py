@@ -44,6 +44,43 @@ def wait_for_http(name: str, host_port: int, timeout: int = 300) -> None:
     raise AssertionError(f"{name} did not become ready.\n{logs(name)}")
 
 
+def wait_for_exit(name: str, timeout: int = 120) -> None:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        status = run_command(
+            ["docker", "inspect", "-f", "{{.State.Status}}", name],
+            check=False,
+        ).stdout.strip()
+        if status == "exited":
+            return
+        if status and status != "running":
+            raise AssertionError(
+                f"{name} entered unexpected state {status}.\n{logs(name)}"
+            )
+        time.sleep(2)
+
+    raise AssertionError(f"{name} did not exit.\n{logs(name)}")
+
+
+def seed_postgres_major(data_volume: str, major: str) -> None:
+    run_command(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--platform",
+            "linux/amd64",
+            "-v",
+            f"{data_volume}:/data",
+            "--entrypoint",
+            "sh",
+            IMAGE_TAG,
+            "-c",
+            f"mkdir -p /data/postgres && printf '%s\\n' {major!r} >/data/postgres/PG_VERSION",
+        ]
+    )
+
+
 @contextmanager
 def container(config_volume: str, data_volume: str):
     name = f"infisical-aio-pytest-{uuid.uuid4().hex[:10]}"
@@ -110,3 +147,22 @@ def test_happy_path_boot_and_restart_persists_generated_env() -> None:
             second_contents = read_container_file(name, "/config/aio/generated.env")
             assert "AIO_MAILPIT_UI_USERNAME=" in second_contents  # nosec B101
             assert "AIO_MAILPIT_UI_PASSWORD=" in second_contents  # nosec B101
+
+
+def test_existing_internal_postgres_major_mismatch_fails_fast() -> None:
+    with (
+        docker_volume("infisical-aio-config") as config_volume,
+        docker_volume("infisical-aio-data") as data_volume,
+    ):
+        seed_postgres_major(data_volume, "15")
+
+        with container(config_volume, data_volume) as (name, _host_port):
+            wait_for_exit(name)
+            output = logs(name)
+            mismatch = (
+                "Existing PostgreSQL data directory major (15) does not match "
+                "bundled PostgreSQL major (16)."
+            )
+            migration_hint = "Please migrate your PostgreSQL data before upgrading"
+            assert mismatch in output  # nosec B101
+            assert migration_hint in output  # nosec B101
