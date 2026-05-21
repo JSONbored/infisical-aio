@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.160.3-aio.2 - 2026-05-21
+
+### Fixes
+
+- Fail bootstrap helper on pre-bootstrapped instance
+
+- Make Mailpit UI host port opt-in
+
+- Validate major before reusing internal cluster
+
 ## v0.160.3-aio.1 - 2026-05-21
 
 ### Maintenance
