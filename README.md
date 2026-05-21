@@ -27,7 +27,7 @@ If you want the simplest supported path:
 2. Leave the default `/config` and `/data` paths in place unless you have a reason to move them.
 3. Set `SITE_URL` to the real URL users will visit, such as `https://secrets.example.com` or `http://tower.local:8080`.
 4. Start the container and wait for the API to come up.
-5. If you want to inspect local mail, open the bundled Mailpit inbox on port `8025` and read the generated `AIO_MAILPIT_UI_USERNAME` / `AIO_MAILPIT_UI_PASSWORD` values from `/config/aio/generated.env`.
+5. If you want to inspect local mail from the host network, set `Local Mail Inbox Port` in Advanced View, then open the bundled Mailpit inbox on that chosen port and read the generated `AIO_MAILPIT_UI_USERNAME` / `AIO_MAILPIT_UI_PASSWORD` values from `/config/aio/generated.env`.
 6. Create the first account in the UI, or set the optional `AIO_BOOTSTRAP_*` fields in Advanced View to auto-bootstrap it.
 
 If you leave the important secrets blank, the wrapper will:
@@ -54,6 +54,7 @@ The wrapper still defaults to the internal bundled services so new Unraid users 
 Additional advanced wrapper-specific knobs worth knowing about:
 
 - `AIO_ENABLE_BUNDLED_MAILPIT` to keep or disable the bundled local inbox when `SMTP_HOST` is blank
+- `Local Mail Inbox Port` if you intentionally want host-network access to the bundled Mailpit inbox UI
 - `AIO_MAILPIT_UI_USERNAME` and `AIO_MAILPIT_UI_PASSWORD` if you want to override the generated inbox UI credentials
 - `NODE_EXTRA_CA_CERTS` if your external Redis or other upstream dependency uses a private or self-signed CA; point it at a PEM file under `/config`, such as `/config/aio/certs/custom-ca.pem`
 - optional host port `9464` when you enable `OTEL_TELEMETRY_COLLECTION_ENABLED=true` with `OTEL_EXPORT_TYPE=prometheus`
