@@ -320,12 +320,16 @@ def render_xml() -> str:
 - [code]SITE_URL[/code] matters. If you set it wrong, browser flows, links, email behavior, and some integrations will break in subtle ways.&#xD;
 - If you enable automatic bootstrap, you are creating a highly privileged instance-admin identity during first boot. Treat those credentials carefully.</Overview>
   <Changes>{changes}</Changes>
-  <Category>Network:Security Security Tools:Utilities</Category>
+  <Category>Security Tools:Utilities</Category>
   <WebUI>http://[IP]:[PORT:8080]</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/infisical-aio.xml</TemplateURL>
+  <ReadMe>https://github.com/JSONbored/infisical-aio#readme</ReadMe>
   <Icon>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/icons/infisical.png</Icon>
   <ExtraSearchTerms>secrets manager vault devops credentials certificates pki pam secret scanning self-hosted</ExtraSearchTerms>
   <Requires>Use a correct public or LAN [code]SITE_URL[/code] and back up both your PostgreSQL data and the persisted [code]ENCRYPTION_KEY[/code]. For larger or higher-availability deployments, move PostgreSQL and Redis out of the bundled container and use the advanced external override fields.</Requires>
+  <Screenshot>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/screenshots/infisical-aio/01-login.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/screenshots/infisical-aio/02-dashboard.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/screenshots/infisical-aio/03-project.png</Screenshot>
   <ExtraParams/>
   <PostArgs/>
   <CPUset/>

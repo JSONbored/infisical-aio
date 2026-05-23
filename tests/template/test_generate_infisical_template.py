@@ -32,3 +32,17 @@ def test_mailpit_ui_port_is_opt_in() -> None:
     assert mailpit_config.attrib["Default"] == ""  # nosec B101
     assert mailpit_config.attrib["Display"] == "advanced"  # nosec B101
     assert (mailpit_config.text or "").strip() == ""  # nosec B101
+
+
+def test_ca_metadata_uses_current_categories_and_discovery_fields() -> None:
+    root = ET.parse(REPO_ROOT / "infisical-aio.xml").getroot()
+
+    assert root.findtext("Category") == "Security Tools:Utilities"  # nosec B101
+    assert (  # nosec B101
+        root.findtext("ReadMe") == "https://github.com/JSONbored/infisical-aio#readme"
+    )
+    assert [s.text for s in root.findall("Screenshot")] == [  # nosec B101
+        "https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/screenshots/infisical-aio/01-login.png",
+        "https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/screenshots/infisical-aio/02-dashboard.png",
+        "https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/screenshots/infisical-aio/03-project.png",
+    ]
