@@ -56,7 +56,19 @@ catalog:
       target: infisical-aio.xml
     - source: assets/app-icon.png
       target: icons/infisical.png
+    - source: screenshots/infisical-aio/01-login.png
+      target: screenshots/infisical-aio/01-login.png
+    - source: screenshots/infisical-aio/02-dashboard.png
+      target: screenshots/infisical-aio/02-dashboard.png
+    - source: screenshots/infisical-aio/03-project.png
+      target: screenshots/infisical-aio/03-project.png
 tests:
   unit: tests/template
   integration: tests/integration -m integration
   checkout_submodules: false
+validation:
+  required_text_fields:
+    - ReadMe
+  exact_category_tokens:
+    - Security
+    - Tools:Utilities
