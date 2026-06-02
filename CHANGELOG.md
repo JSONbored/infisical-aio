@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.160.10-aio.1 - 2026-06-02
+
+### Maintenance
+
+- Refresh fleet manifest contract
+
+- Bump infisical to v0.160.10
+
+### Tests
+
+- Use shared app test helpers
+
 ## v0.160.9-aio.1 - 2026-05-31
 
 ### Maintenance
