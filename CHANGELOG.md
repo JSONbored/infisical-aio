@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.160.11-aio.1 - 2026-06-12
+
+### Maintenance
+
+- Bump infisical to v0.160.11 (#75)
+
 ## v0.160.10-aio.1 - 2026-06-02
 
 ### Maintenance
