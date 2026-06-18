@@ -4,16 +4,16 @@ ARG UPSTREAM_VERSION=v0.161.0
 ARG UPSTREAM_IMAGE_DIGEST=sha256:6fb7116d8976f6835af89d8a76806a7c219b69d251107d9bbcf7e1e8b11299c7
 ARG MAILPIT_VERSION=v1.30.2
 ARG MAILPIT_IMAGE_DIGEST=sha256:37a38e48e9338cd7e89dfeb487f37b02ebfcd9cb23111bed2d345e79d37d6dd6
+FROM jsonbored/aio-base:s6-3.2.1.0@sha256:07db479a01a95ba28480b4605f5d1cc8bedb574b77cf167ee46e29b9558fee90 AS aio-base
+
 FROM infisical/infisical:${UPSTREAM_VERSION}@${UPSTREAM_IMAGE_DIGEST}
 
 FROM axllent/mailpit:${MAILPIT_VERSION}@${MAILPIT_IMAGE_DIGEST} AS mailpit
 
 FROM infisical/infisical:${UPSTREAM_VERSION}@${UPSTREAM_IMAGE_DIGEST}
 
-ARG S6_OVERLAY_VERSION=3.2.1.0
 ARG INTERNAL_POSTGRESQL_MAJOR=16
 ARG INTERNAL_REDIS_MAJOR=7
-ARG TARGETARCH
 
 LABEL org.opencontainers.image.source="https://github.com/JSONbored/infisical-aio" \
       org.opencontainers.image.title="infisical-aio" \
@@ -26,8 +26,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-RUN find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec sed -i 's|http://|https://|g' {} + && \
-    printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' > /etc/apt/apt.conf.d/80-retries && \
+# Shared, pinned s6-overlay from the fleet aio-base overlay.
+COPY --from=aio-base /aio-overlay/ /
+
+RUN aio-harden pre && \
     apt-get update && apt-get -y dist-upgrade && apt-get install -y --no-install-recommends \
     ca-certificates="$(apt-cache madison ca-certificates | awk 'NR==1 {print $3}')" \
     curl="$(apt-cache madison curl | awk 'NR==1 {print $3}')" \
@@ -48,15 +50,6 @@ RUN find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec sed -i
       "postgresql-client-${INTERNAL_POSTGRESQL_MAJOR}=${POSTGRESQL_PACKAGE_VERSION}" \
       "redis-server=${REDIS_PACKAGE_VERSION}" \
       "redis-tools=${REDIS_PACKAGE_VERSION}" && \
-    curl -L -o /tmp/s6-overlay-noarch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" && \
-    tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz && \
-    case "${TARGETARCH}" in \
-      amd64) s6_arch="x86_64" ;; \
-      arm64) s6_arch="aarch64" ;; \
-      *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
-    esac && \
-    curl -L -o /tmp/s6-overlay-arch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${s6_arch}.tar.xz" && \
-    tar -C / -Jxpf /tmp/s6-overlay-arch.tar.xz && \
     useradd --system --home-dir /var/lib/mailpit --create-home --shell /usr/sbin/nologin mailpit && \
     mkdir -p /config/aio /config/aio/mailpit /data/postgres /data/redis /data/mailpit /run/postgresql && \
     chown -R postgres:postgres /data/postgres /run/postgresql && \
