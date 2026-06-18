@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.161.1-aio.1 - 2026-06-18
+
+### Maintenance
+
+- Bump infisical to v0.161.1 (#82)
+
+### Refactors
+
+- Use the shared aio-base s6 overlay (#83)
+
 ## v0.161.0-aio.2 - 2026-06-17
 
 ### Maintenance
