@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
+import secrets
 import time
 import uuid
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
+from http.client import HTTPConnection
 
 import pytest
 
@@ -82,7 +85,7 @@ def seed_postgres_major(data_volume: str, major: str) -> None:
 
 
 @contextmanager
-def container(config_volume: str, data_volume: str):
+def container(config_volume: str, data_volume: str, image: str = IMAGE_TAG):
     name = f"infisical-aio-pytest-{uuid.uuid4().hex[:10]}"
     host_port = reserve_host_port()
     command = [
@@ -94,14 +97,14 @@ def container(config_volume: str, data_volume: str):
         "--name",
         name,
         "-p",
-        f"{host_port}:8080",
+        f"127.0.0.1:{host_port}:8080",
         "-e",
         f"SITE_URL=http://127.0.0.1:{host_port}",
         "-v",
         f"{config_volume}:/config",
         "-v",
         f"{data_volume}:/data",
-        IMAGE_TAG,
+        image,
     ]
     run_command(command)
     try:
@@ -166,3 +169,72 @@ def test_existing_internal_postgres_major_mismatch_fails_fast() -> None:
             migration_hint = "Please migrate your PostgreSQL data before upgrading"
             assert mismatch in output  # nosec B101
             assert migration_hint in output  # nosec B101
+
+
+def test_upgrade_decrypts_secret_created_on_published_image() -> None:
+    # The June stable image is the starting point for this upgrade.
+    baseline = (
+        "jsonbored/infisical-aio:v0.161.1-aio.1"
+        "@sha256:34f7277cece4d002813984a0b4918d02e5fb77450a5726b5409b09dffe28c844"
+    )
+    value = secrets.token_hex(32)
+    credentials = {
+        "email": "upgrade@example.com",
+        "password": secrets.token_urlsafe(32),
+    }
+
+    def api(port, method, path, body=None, token=None):
+        headers = {"Content-Type": "application/json", "User-Agent": "aio-upgrade-test"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        with closing(HTTPConnection("127.0.0.1", port, timeout=30)) as connection:
+            connection.request(
+                method, path, json.dumps(body) if body else None, headers
+            )
+            response = connection.getresponse()
+            if response.status != 200:
+                raise AssertionError(f"{method} {path} returned HTTP {response.status}")
+            return json.load(response)
+
+    def login(port, organization_id):
+        session = api(port, "POST", "/api/v3/auth/login", credentials)
+        org_session = api(
+            port,
+            "POST",
+            "/api/v3/auth/select-organization",
+            {"organizationId": organization_id},
+            session["accessToken"],
+        )
+        return org_session["token"]
+
+    with (
+        docker_volume("infisical-upgrade-config") as config_volume,
+        docker_volume("infisical-upgrade-data") as data_volume,
+    ):
+        with container(config_volume, data_volume, baseline) as (name, port):
+            wait_for_http(name, port)
+            bootstrap = api(
+                port,
+                "POST",
+                "/api/v1/admin/bootstrap",
+                {**credentials, "organization": "Upgrade test"},
+            )
+            organization_id = bootstrap["organization"]["id"]
+            token = login(port, organization_id)
+            project = api(
+                port, "POST", "/api/v1/projects", {"projectName": "Upgrade"}, token
+            )["project"]
+            environment = project["environments"][0]["slug"]
+            path = "/api/v4/secrets/AIO_UPGRADE_TEST"
+            location = {"projectId": project["id"], "environment": environment}
+            created = api(port, "POST", path, {**location, "secretValue": value}, token)
+            assert created["secret"]["secretValue"] == value  # nosec B101
+            run_command(["docker", "stop", "-t", "45", name])
+
+        with container(config_volume, data_volume) as (name, port):
+            wait_for_http(name, port)
+            query = f"{path}?projectId={project['id']}&environment={environment}"
+            token = login(port, organization_id)
+            restored = api(port, "GET", query, token=token)["secret"]
+            assert restored["id"] == created["secret"]["id"]  # nosec B101
+            assert restored["secretValue"] == value  # nosec B101
