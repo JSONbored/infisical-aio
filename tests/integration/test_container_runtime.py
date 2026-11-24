@@ -188,7 +188,9 @@ def test_upgrade_decrypts_secret_created_on_published_image() -> None:
         if token:
             headers["Authorization"] = f"Bearer {token}"
         with closing(HTTPConnection("127.0.0.1", port, timeout=30)) as connection:
-            connection.request(method, path, json.dumps(body) if body else None, headers)
+            connection.request(
+                method, path, json.dumps(body) if body else None, headers
+            )
             response = connection.getresponse()
             if response.status != 200:
                 raise AssertionError(f"{method} {path} returned HTTP {response.status}")
