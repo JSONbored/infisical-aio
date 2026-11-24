@@ -178,9 +178,13 @@ def test_upgrade_decrypts_secret_created_on_published_image() -> None:
         "@sha256:34f7277cece4d002813984a0b4918d02e5fb77450a5726b5409b09dffe28c844"
     )
     value = secrets.token_hex(32)
+    credentials = {
+        "email": "upgrade@example.com",
+        "password": secrets.token_urlsafe(32),
+    }
 
     def api(port, method, path, body=None, token=None):
-        headers = {"Content-Type": "application/json"}
+        headers = {"Content-Type": "application/json", "User-Agent": "aio-upgrade-test"}
         if token:
             headers["Authorization"] = f"Bearer {token}"
         with closing(HTTPConnection("127.0.0.1", port, timeout=30)) as connection:
@@ -189,6 +193,17 @@ def test_upgrade_decrypts_secret_created_on_published_image() -> None:
             if response.status != 200:
                 raise AssertionError(f"{method} {path} returned HTTP {response.status}")
             return json.load(response)
+
+    def login(port, organization_id):
+        session = api(port, "POST", "/api/v3/auth/login", credentials)
+        org_session = api(
+            port,
+            "POST",
+            "/api/v3/auth/select-organization",
+            {"organizationId": organization_id},
+            session["accessToken"],
+        )
+        return org_session["token"]
 
     with (
         docker_volume("infisical-upgrade-config") as config_volume,
@@ -200,13 +215,10 @@ def test_upgrade_decrypts_secret_created_on_published_image() -> None:
                 port,
                 "POST",
                 "/api/v1/admin/bootstrap",
-                {
-                    "email": "upgrade@example.com",
-                    "password": secrets.token_urlsafe(32),
-                    "organization": "Upgrade test",
-                },
+                {**credentials, "organization": "Upgrade test"},
             )
-            token = bootstrap["identity"]["credentials"]["token"]
+            organization_id = bootstrap["organization"]["id"]
+            token = login(port, organization_id)
             project = api(
                 port, "POST", "/api/v1/projects", {"projectName": "Upgrade"}, token
             )["project"]
@@ -220,6 +232,7 @@ def test_upgrade_decrypts_secret_created_on_published_image() -> None:
         with container(config_volume, data_volume) as (name, port):
             wait_for_http(name, port)
             query = f"{path}?projectId={project['id']}&environment={environment}"
+            token = login(port, organization_id)
             restored = api(port, "GET", query, token=token)["secret"]
             assert restored["id"] == created["secret"]["id"]  # nosec B101
             assert restored["secretValue"] == value  # nosec B101
